@@ -128,7 +128,7 @@ namespace
 		uint32_t queueCount = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, nullptr);
 
-		std::vector<VkQueueFamilyProperties> queues;
+		std::vector<VkQueueFamilyProperties> queues(queueCount);
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, queues.data());
 
 		// Check queue family's required features are valid
