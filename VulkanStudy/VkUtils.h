@@ -5,7 +5,7 @@ namespace VkUtils
 {
 	struct QueueFamilyIndices
 	{
-		uint32_t graphicsFamily = -1;
+		int graphicsFamily = -1;
 
 		bool IsValid(){ return graphicsFamily >= 0; }
 			

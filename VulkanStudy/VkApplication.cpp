@@ -132,12 +132,14 @@ namespace
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, queues.data());
 
 		// Check queue family's required features are valid
+		int index = 0;
 		for (const auto& queueFamily : queues)
 		{
 			if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-				indices.graphicsFamily = VK_QUEUE_GRAPHICS_BIT;
+				indices.graphicsFamily = index;
 			if (indices.IsValid())
 				break;
+			++index;
 		}
 
 		return indices;
@@ -178,6 +180,7 @@ void VkApplication::InitVulkan()
 	CreateVkInstance();
 	SetUpVkDebugMessengerEXT();
 	GetVkPhysicalDevice();
+	CreateVkLogicalDevice();
 }
 
 void VkApplication::MainLoop()
@@ -192,7 +195,8 @@ void VkApplication::CleanUp()
 {
 	if (m_enableValidationLayer)
 		DestroyVkDebugUtilsMessengerEXT(m_vkInstance, m_vkDebugMessenger, nullptr);
-	// vkDestroyInstance(m_vkInstance, nullptr);
+	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
+	vkDestroyInstance(m_vkInstance, nullptr);
 	glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
@@ -206,7 +210,7 @@ void VkApplication::CreateVkInstance()
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.pEngineName = "No Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_0;
+	appInfo.apiVersion = VK_API_VERSION_1_2;
 
 	// Struct carries info to create VkInstance
 	VkInstanceCreateInfo vkCreateInfo = {};
@@ -238,6 +242,34 @@ void VkApplication::CreateVkInstance()
 
 	if (vkCreateInstance(&vkCreateInfo, nullptr, &m_vkInstance) != VK_SUCCESS)
 		throw std::runtime_error("VULKAN INIT ERROR : falied to create Vulkan instance!");
+}
+
+void VkApplication::CreateVkLogicalDevice()
+{
+	auto indices = GetQueueFamiilyIndices(m_mainDevice.physDevice);
+
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueCount = 1;
+	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
+	float priority = 1.0f;
+	// Vullkan need to know how to handle multiple queue, so set priority to show Vulkan
+	queueCreateInfo.pQueuePriorities = &priority;
+
+	VkDeviceCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.queueCreateInfoCount = 1;
+	createInfo.pQueueCreateInfos = &queueCreateInfo;
+
+	VkPhysicalDeviceFeatures features = {};
+
+	createInfo.pEnabledFeatures = &features;
+
+	if (vkCreateDevice(m_mainDevice.physDevice, &createInfo, nullptr, &m_mainDevice.logicalDevice) != VK_SUCCESS)
+		throw std::runtime_error("VULKAN INIT ERROR : Failed to create logical devices");
+
+	// Get Queue that created inside logical device to use later
+	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.graphicsFamily, 0, &m_vkQueue);
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
@@ -304,6 +336,9 @@ void VkApplication::GetVkPhysicalDevice()
 			break;
 		}	
 	}
+
+	if (m_mainDevice.physDevice == nullptr)
+		throw std::runtime_error("\nVULKAN INIT ERROR : Can't find suitable physical devices !");
 }
 
 std::vector<const char*> VkApplication::GetRequiredInstanceExtensions()

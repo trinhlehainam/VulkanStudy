@@ -21,6 +21,7 @@ private:
 	void CleanUp();
 
 	void CreateVkInstance();
+	void CreateVkLogicalDevice();
 	void SetUpVkDebugMessengerEXT();
 	void GetVkPhysicalDevice();
 	bool CheckVkValidationLayersSupport();
@@ -33,6 +34,7 @@ private:
 		VkPhysicalDevice physDevice;
 		VkDevice logicalDevice;
 	}m_mainDevice;
+	VkQueue m_vkQueue;
 	VkDebugUtilsMessengerEXT m_vkDebugMessenger;
 	std::vector<const char*> m_validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	bool m_enableValidationLayer;
