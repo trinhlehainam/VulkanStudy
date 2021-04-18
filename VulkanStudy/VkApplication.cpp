@@ -37,9 +37,15 @@ namespace
 
 	bool CheckVkInstanceExtensionsSupport(const std::vector<const char*>& requiredExtensions);
 
+	bool CheckVkValidationLayersSupport(const std::vector<const char*>& requiredLayers);
+
+	bool CheckVkDeviceExtensionsSupport(VkPhysicalDevice device, const std::vector<const char*>& requiredDeviceExtensions);
+
 	bool CheckVkPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 	VkUtils::QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface);
+
+	VkUtils::SwapChainDetails CheckSwapChainDetails(VkPhysicalDevice device, VkSurfaceKHR surface);
 }
 
 namespace
@@ -77,17 +83,20 @@ namespace
 		uint32_t extensionsCount = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
 
+		if (extensionsCount == 0)
+			return false;
+
 		std::vector<VkExtensionProperties> vkSupportExtensions(extensionsCount);
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, vkSupportExtensions.data());
 
 #ifdef _DEBUG || DEBUG
 		std::cout << "\n" << requiredExtensions.size() << " required instance extensions \n";
-		std::cout << "Required Instance Extensions Supported By Vulkan : \n";
+		std::cout << "REQUIRED INSTANCE EXTENSIONS : \n";
 		for (const auto& requiredExtension : requiredExtensions)
 			std::cout << "\t" << requiredExtension << "\n";
 
 		std::cout << "\n" << extensionsCount << " instance extensions are supported by Vulkan \n";
-		std::cout << "Instance Extensions Supported By Vulkan : \n";
+		std::cout << "INSTANCE EXTENSIONS : \n";
 		for (const auto& supportExtension : vkSupportExtensions)
 			std::cout << "\t" << supportExtension.extensionName << "\n";
 #endif
@@ -110,6 +119,79 @@ namespace
 		return true;
 	}
 
+	bool CheckVkValidationLayersSupport(const std::vector<const char*>& requiredLayers)
+	{
+		uint32_t layerCount = 0;
+		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+		std::vector<VkLayerProperties> supportLayers(layerCount);
+		vkEnumerateInstanceLayerProperties(&layerCount, supportLayers.data());
+
+#ifdef _DEBUG || DEBUG
+		std::cout << "\n" << layerCount << " validations layers supported by Vulkan \n";
+		std::cout << "SUPPORTED VALIDATION LAYERS : \n";
+		for (const auto& layer : supportLayers)
+			std::cout << "\t" << layer.layerName << "\n";
+		std::cout << "\n";
+#endif
+
+		for (const auto& requiredLayer : requiredLayers)
+		{
+			bool isSupported = false;
+			for (const auto& supportLayer : supportLayers)
+			{
+				if (strcmp(requiredLayer, supportLayer.layerName))
+				{
+					isSupported = true;
+					break;
+				}
+			}
+
+			if (!isSupported)
+				return false;
+		}
+
+		return true;
+	}
+
+	bool CheckVkDeviceExtensionsSupport(VkPhysicalDevice device, const std::vector<const char*>& requiredDeviceExtensions)
+	{
+		uint32_t extensionCount = 0;
+		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+		if (extensionCount == 0)
+			return false;
+
+		std::vector<VkExtensionProperties> extensions(extensionCount);
+		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
+
+#ifdef _DEBUG || DEBUG
+		std::cout << "\nSUPPORTED DEVICE EXTENSIONS :\n";
+		for (const auto& extension : extensions)
+			std::cout << "\t" << extension.extensionName << "\n";
+		std::cout << "\n";
+#endif
+
+		for (const auto& requiredExtension : requiredDeviceExtensions)
+		{
+			bool isSupported = false;
+			for (const auto& extension : extensions)
+			{
+				if (strcmp(requiredExtension, extension.extensionName))
+				{
+					isSupported = true;
+					break;
+				}
+			}
+
+			if (!isSupported)
+				return false;
+		}
+
+		return true;
+	}
+
+
 	bool CheckVkPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
 	{
 		// Information about device itself
@@ -125,7 +207,12 @@ namespace
 		std::cout << "\n";
 #endif
 
-		return GetQueueFamiilyIndices(device, surface).IsValid();
+		auto swapChainDetails = CheckSwapChainDetails(device, surface);
+		bool isSwapchainvalid = !swapChainDetails.Formats.empty() && !swapChainDetails.PresentModes.empty();
+
+		return GetQueueFamiilyIndices(device, surface).IsValid() && 
+			CheckVkDeviceExtensionsSupport(device, VkUtils::DEVICE_EXTENSIONS) &&
+			isSwapchainvalid;
 	}
 
 	VkUtils::QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface)
@@ -158,6 +245,31 @@ namespace
 		}
 
 		return indices;
+	}
+
+	VkUtils::SwapChainDetails CheckSwapChainDetails(VkPhysicalDevice device, VkSurfaceKHR surface)
+	{
+		VkUtils::SwapChainDetails details;
+
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.Capabilities);
+
+		uint32_t formatCount = 0;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+		if (formatCount != 0)
+		{
+			details.Formats.resize(formatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.Formats.data());
+		}
+			
+		uint32_t presentModeCount = 0;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+		if (presentModeCount != 0)
+		{
+			details.PresentModes.resize(presentModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.PresentModes.data());
+		}
+			
+		return details;
 	}
 }
 
@@ -242,7 +354,7 @@ void VkApplication::CreateVkInstance()
 	vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 	vkCreateInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-	if (m_enableValidationLayer && !CheckVkValidationLayersSupport())
+	if (m_enableValidationLayer && !CheckVkValidationLayersSupport(m_validationLayers))
 		throw std::runtime_error("\nVULKAN INIT ERROR : vallidation layers required , but not found !\n");
 
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
@@ -263,9 +375,6 @@ void VkApplication::CreateVkInstance()
 
 void VkApplication::CreateVkLogicalDevice()
 {
-	if (!CheckVkDeviceExtensionsSupport())
-		throw std::runtime_error("\nVULKAN INIT ERROR : Device extensions are not supported !\n");
-
 	auto indices = GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
 
 	// std::set only allow one object to hold one specific value
@@ -294,8 +403,8 @@ void VkApplication::CreateVkLogicalDevice()
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(m_deviceExtensions.size());
-	createInfo.ppEnabledExtensionNames = m_deviceExtensions.data();
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(VkUtils::DEVICE_EXTENSIONS.size());
+	createInfo.ppEnabledExtensionNames = VkUtils::DEVICE_EXTENSIONS.data();
 
 	VkPhysicalDeviceFeatures features = {};
 	createInfo.pEnabledFeatures = &features;
@@ -323,78 +432,6 @@ void VkApplication::SetUpVkDebugMessengerEXT()
 
 	if (CreateVkDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create debug utils messenger extension !\n");
-}
-
-bool VkApplication::CheckVkValidationLayersSupport()
-{
-	uint32_t layerCount = 0;
-	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-	std::vector<VkLayerProperties> supportLayers(layerCount);
-	vkEnumerateInstanceLayerProperties(&layerCount, supportLayers.data());
-
-#ifdef _DEBUG || DEBUG
-	std::cout << "\n" << layerCount << " validations layers supported by Vulkan \n";
-	std::cout << "SUPPORTED VALIDATION LAYERS : \n";
-	for (const auto& layer : supportLayers)
-		std::cout << "\t" << layer.layerName << "\n";
-	std::cout << "\n";
-#endif
-
-	for (const auto& requiredLayer : m_validationLayers)
-	{
-		bool isSupported = false;
-		for (const auto& supportLayer : supportLayers)
-		{
-			if (strcmp(requiredLayer, supportLayer.layerName))
-			{
-				isSupported = true;
-				break;
-			}
-		}
-
-		if (!isSupported)
-			return false;
-	}
-
-	return true;
-}
-
-bool VkApplication::CheckVkDeviceExtensionsSupport()
-{
-	uint32_t extensionCount = 0;
-	vkEnumerateDeviceExtensionProperties(m_mainDevice.physDevice, nullptr, &extensionCount, nullptr);
-
-	if (extensionCount == 0)
-		return false;
-
-	std::vector<VkExtensionProperties> extensions(extensionCount);
-	vkEnumerateDeviceExtensionProperties(m_mainDevice.physDevice, nullptr, &extensionCount, extensions.data());
-
-#ifdef _DEBUG || DEBUG
-	std::cout << "\nSUPPORTED DEVICE EXTENSIONS :\n";
-	for (const auto& extension : extensions)
-		std::cout << "\t" << extension.extensionName << "\n";
-	std::cout << "\n";
-#endif
-
-	for (const auto& requiredExtension : m_deviceExtensions)
-	{
-		bool isSupported = false;
-		for (const auto& extension : extensions)
-		{
-			if (strcmp(requiredExtension, extension.extensionName))
-			{
-				isSupported = true;
-				break;
-			}
-		}
-
-		if (!isSupported)
-			return false;
-	}
-
-	return true;
 }
 
 void VkApplication::PickVkPhysicalDevice()
