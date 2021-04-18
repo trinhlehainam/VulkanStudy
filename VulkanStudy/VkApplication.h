@@ -22,23 +22,26 @@ private:
 
 	void CreateVkInstance();
 	void CreateVkLogicalDevice();
+	void CreateVkSurface();
+
 	void SetUpVkDebugMessengerEXT();
 
-	void GetVkPhysicalDevice();
+	void PickVkPhysicalDevice();
 
 	bool CheckVkValidationLayersSupport();
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
 
 	GLFWwindow* m_window;
-	VkInstance m_vkInstance;
-	struct
-	{
+	VkInstance m_instance;
+	struct{
 		VkPhysicalDevice physDevice;
 		VkDevice logicalDevice;
 	}m_mainDevice;
-	VkQueue m_vkQueue;
-	VkDebugUtilsMessengerEXT m_vkDebugMessenger;
+	VkQueue m_graphicsQueue;
+	VkQueue m_presentationQueue;
+	VkSurfaceKHR m_surface;
+	VkDebugUtilsMessengerEXT m_debugMessenger;
 	std::vector<const char*> m_validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	bool m_enableValidationLayer;
 };

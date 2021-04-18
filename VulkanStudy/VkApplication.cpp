@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cstdint>
+#include <set>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ONE_TO_ZERO
@@ -16,7 +17,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	void* pUserData)
 {
-	std::cerr << " \nVULKAN DEBUG MESSAGE : " << pCallbackData->pMessage << std::endl;
+	if(messageServerities > VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+		std::cerr << "\nVULKAN DEBUG MESSAGE : " << pCallbackData->pMessage << "\n" << std::endl;
+	else
+		std::cerr << "VULKAN DEBUG MESSAGE : " << pCallbackData->pMessage << std::endl;
 
 	return VK_FALSE;
 }
@@ -33,9 +37,9 @@ namespace
 
 	bool CheckVkInstanceExtensionsSupport(const std::vector<const char*>& requiredExtensions);
 
-	bool CheckVkPhysicalDeviceSuitable(VkPhysicalDevice device);
+	bool CheckVkPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface);
 
-	VkUtils::QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice);
+	VkUtils::QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface);
 }
 
 namespace
@@ -106,7 +110,7 @@ namespace
 		return true;
 	}
 
-	bool CheckVkPhysicalDeviceSuitable(VkPhysicalDevice device)
+	bool CheckVkPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
 	{
 		// Information about device itself
 		VkPhysicalDeviceProperties deviceProps;
@@ -117,28 +121,35 @@ namespace
 		vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
 #ifdef _DEBUG || DEBUG
-		std::cout << "\nVULKAN SUPPORTED DEVICE : " << deviceProps.deviceName;
+		std::cout << "\nVULKAN SUPPORTED DEVICE : " << deviceProps.deviceName << "\n";
 #endif
 
-		return GetQueueFamiilyIndices(device).IsValid();
+		return GetQueueFamiilyIndices(device, surface).IsValid();
 	}
 
-	VkUtils::QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice device)
+	VkUtils::QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface)
 	{
 		VkUtils::QueueFamilyIndices indices;
 
 		uint32_t queueCount = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, nullptr);
 
-		std::vector<VkQueueFamilyProperties> queues(queueCount);
-		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, queues.data());
+		std::vector<VkQueueFamilyProperties> queueFamilies(queueCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, queueFamilies.data());
 
 		// Check queue family's required features are valid
 		int index = 0;
-		for (const auto& queueFamily : queues)
+		for (const auto& queueFamily : queueFamilies)
 		{
 			if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 				indices.graphicsFamily = index;
+
+			VkBool32 presentationSupported = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &presentationSupported);
+
+			if (queueFamily.queueCount > 0 && presentationSupported)
+				indices.presentationFamily = index;
+
 			if (indices.IsValid())
 				break;
 			++index;
@@ -181,7 +192,8 @@ void VkApplication::InitVulkan()
 {
 	CreateVkInstance();
 	SetUpVkDebugMessengerEXT();
-	GetVkPhysicalDevice();
+	CreateVkSurface();
+	PickVkPhysicalDevice();
 	CreateVkLogicalDevice();
 }
 
@@ -196,9 +208,10 @@ void VkApplication::MainLoop()
 void VkApplication::CleanUp()
 {
 	if (m_enableValidationLayer)
-		DestroyVkDebugUtilsMessengerEXT(m_vkInstance, m_vkDebugMessenger, nullptr);
+		DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+	//vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
-	vkDestroyInstance(m_vkInstance, nullptr);
+	vkDestroyInstance(m_instance, nullptr);
 	glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
@@ -242,26 +255,40 @@ void VkApplication::CreateVkInstance()
 	else
 		vkCreateInfo.enabledLayerCount = 0;
 
-	if (vkCreateInstance(&vkCreateInfo, nullptr, &m_vkInstance) != VK_SUCCESS)
+	if (vkCreateInstance(&vkCreateInfo, nullptr, &m_instance) != VK_SUCCESS)
 		throw std::runtime_error("VULKAN INIT ERROR : falied to create Vulkan instance!");
 }
 
 void VkApplication::CreateVkLogicalDevice()
 {
-	auto indices = GetQueueFamiilyIndices(m_mainDevice.physDevice);
+	auto indices = GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
 
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueCount = 1;
-	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
-	float priority = 1.0f;
-	// Vullkan need to know how to handle multiple queue, so set priority to show Vulkan
-	queueCreateInfo.pQueuePriorities = &priority;
+	// std::set only allow one object to hold one specific value
+	// Use std::set to check if presentation queue is inside graphics queue or in the seperate queue
+	// If presentation queue is inside graphics queue -> only create one queue
+	// Else create the seperate queue for presentation queue
+	std::set<int> queueFamilyIndices = { indices.graphicsFamily, indices.presentationFamily };
 
+	std::vector <VkDeviceQueueCreateInfo> queueCreateInfos;
+	queueCreateInfos.reserve(queueFamilyIndices.size());
+
+	for (auto queueIndex : queueFamilyIndices)
+	{
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.queueFamilyIndex = queueIndex;
+		float priority = 1.0f;
+		// Vullkan need to know how to handle multiple queue, so set priority to show Vulkan
+		queueCreateInfo.pQueuePriorities = &priority;
+
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
+	
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.queueCreateInfoCount = 1;
-	createInfo.pQueueCreateInfos = &queueCreateInfo;
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
 	VkPhysicalDeviceFeatures features = {};
 
@@ -271,7 +298,14 @@ void VkApplication::CreateVkLogicalDevice()
 		throw std::runtime_error("VULKAN INIT ERROR : Failed to create logical devices");
 
 	// Get Queue that created inside logical device to use later
-	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.graphicsFamily, 0, &m_vkQueue);
+	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.graphicsFamily, 0, &m_graphicsQueue);
+	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.presentationFamily, 0, &m_presentationQueue);
+}
+
+void VkApplication::CreateVkSurface()
+{
+	if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS)
+		throw std::runtime_error("VULKAN INIT ERROR : Failed to create VkSurface !");
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
@@ -281,7 +315,7 @@ void VkApplication::SetUpVkDebugMessengerEXT()
 	VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
 	PopulateVkDebugMessengerCreateInfo(createInfo);
 
-	if (CreateVkDebugUtilsMessengerEXT(m_vkInstance, &createInfo, nullptr, &m_vkDebugMessenger) != VK_SUCCESS)
+	if (CreateVkDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS)
 		throw std::runtime_error("VULKAN INIT ERROR : Failed to create debug utils messenger extension !");
 }
 
@@ -319,20 +353,20 @@ bool VkApplication::CheckVkValidationLayersSupport()
 	return true;
 }
 
-void VkApplication::GetVkPhysicalDevice()
+void VkApplication::PickVkPhysicalDevice()
 {
 	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
+	vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
 
 	if (deviceCount == 0)
 		throw std::runtime_error("VUKAN INIT ERROR : Can't find physical devices (GPUs) supported by Vulkan Instance !");
 
 	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, devices.data());
+	vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
 
 	for (const auto& device : devices)
 	{
-		if (CheckVkPhysicalDeviceSuitable(device))
+		if (CheckVkPhysicalDeviceSuitable(device, m_surface))
 		{
 			m_mainDevice.physDevice = device;
 			break;
