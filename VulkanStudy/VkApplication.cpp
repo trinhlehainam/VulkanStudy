@@ -122,6 +122,7 @@ namespace
 
 #ifdef _DEBUG || DEBUG
 		std::cout << "\nVULKAN SUPPORTED DEVICE : " << deviceProps.deviceName << "\n";
+		std::cout << "\n";
 #endif
 
 		return GetQueueFamiilyIndices(device, surface).IsValid();
@@ -152,6 +153,7 @@ namespace
 
 			if (indices.IsValid())
 				break;
+
 			++index;
 		}
 
@@ -209,7 +211,7 @@ void VkApplication::CleanUp()
 {
 	if (m_enableValidationLayer)
 		DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
-	//vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
 	glfwDestroyWindow(m_window);
@@ -235,13 +237,13 @@ void VkApplication::CreateVkInstance()
 	auto requiredExtensions = GetRequiredInstanceExtensions();
 
 	if (!CheckVkInstanceExtensionsSupport(requiredExtensions))
-		throw std::runtime_error("VULKAN INIT ERROR : some Vulkan Instance Extensions are not supported !");
+		throw std::runtime_error("\nVULKAN INIT ERROR : some Vulkan Instance Extensions are not supported !\n");
 
 	vkCreateInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 	vkCreateInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
 	if (m_enableValidationLayer && !CheckVkValidationLayersSupport())
-		throw std::runtime_error("VULKAN INIT ERROR : vallidation layers required , but not found !");
+		throw std::runtime_error("\nVULKAN INIT ERROR : vallidation layers required , but not found !\n");
 
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
 	if (m_enableValidationLayer)
@@ -256,11 +258,14 @@ void VkApplication::CreateVkInstance()
 		vkCreateInfo.enabledLayerCount = 0;
 
 	if (vkCreateInstance(&vkCreateInfo, nullptr, &m_instance) != VK_SUCCESS)
-		throw std::runtime_error("VULKAN INIT ERROR : falied to create Vulkan instance!");
+		throw std::runtime_error("\nVULKAN INIT ERROR : falied to create Vulkan instance!\n");
 }
 
 void VkApplication::CreateVkLogicalDevice()
 {
+	if (!CheckVkDeviceExtensionsSupport())
+		throw std::runtime_error("\nVULKAN INIT ERROR : Device extensions are not supported !\n");
+
 	auto indices = GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
 
 	// std::set only allow one object to hold one specific value
@@ -272,14 +277,14 @@ void VkApplication::CreateVkLogicalDevice()
 	std::vector <VkDeviceQueueCreateInfo> queueCreateInfos;
 	queueCreateInfos.reserve(queueFamilyIndices.size());
 
+	// Vullkan need to know how to handle multiple queue, so set priority to show Vulkan
+	float priority = 1.0f;
 	for (auto queueIndex : queueFamilyIndices)
 	{
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queueCreateInfo.queueCount = 1;
 		queueCreateInfo.queueFamilyIndex = queueIndex;
-		float priority = 1.0f;
-		// Vullkan need to know how to handle multiple queue, so set priority to show Vulkan
 		queueCreateInfo.pQueuePriorities = &priority;
 
 		queueCreateInfos.push_back(queueCreateInfo);
@@ -289,13 +294,14 @@ void VkApplication::CreateVkLogicalDevice()
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(m_deviceExtensions.size());
+	createInfo.ppEnabledExtensionNames = m_deviceExtensions.data();
 
 	VkPhysicalDeviceFeatures features = {};
-
 	createInfo.pEnabledFeatures = &features;
 
 	if (vkCreateDevice(m_mainDevice.physDevice, &createInfo, nullptr, &m_mainDevice.logicalDevice) != VK_SUCCESS)
-		throw std::runtime_error("VULKAN INIT ERROR : Failed to create logical devices");
+		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create logical devices !\n");
 
 	// Get Queue that created inside logical device to use later
 	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.graphicsFamily, 0, &m_graphicsQueue);
@@ -305,7 +311,7 @@ void VkApplication::CreateVkLogicalDevice()
 void VkApplication::CreateVkSurface()
 {
 	if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS)
-		throw std::runtime_error("VULKAN INIT ERROR : Failed to create VkSurface !");
+		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create VkSurface !\n");
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
@@ -316,7 +322,7 @@ void VkApplication::SetUpVkDebugMessengerEXT()
 	PopulateVkDebugMessengerCreateInfo(createInfo);
 
 	if (CreateVkDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS)
-		throw std::runtime_error("VULKAN INIT ERROR : Failed to create debug utils messenger extension !");
+		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create debug utils messenger extension !\n");
 }
 
 bool VkApplication::CheckVkValidationLayersSupport()
@@ -329,9 +335,10 @@ bool VkApplication::CheckVkValidationLayersSupport()
 
 #ifdef _DEBUG || DEBUG
 	std::cout << "\n" << layerCount << " validations layers supported by Vulkan \n";
-	std::cout << "Supported validation layers : \n";
+	std::cout << "SUPPORTED VALIDATION LAYERS : \n";
 	for (const auto& layer : supportLayers)
 		std::cout << "\t" << layer.layerName << "\n";
+	std::cout << "\n";
 #endif
 
 	for (const auto& requiredLayer : m_validationLayers)
@@ -353,13 +360,50 @@ bool VkApplication::CheckVkValidationLayersSupport()
 	return true;
 }
 
+bool VkApplication::CheckVkDeviceExtensionsSupport()
+{
+	uint32_t extensionCount = 0;
+	vkEnumerateDeviceExtensionProperties(m_mainDevice.physDevice, nullptr, &extensionCount, nullptr);
+
+	if (extensionCount == 0)
+		return false;
+
+	std::vector<VkExtensionProperties> extensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(m_mainDevice.physDevice, nullptr, &extensionCount, extensions.data());
+
+#ifdef _DEBUG || DEBUG
+	std::cout << "\nSUPPORTED DEVICE EXTENSIONS :\n";
+	for (const auto& extension : extensions)
+		std::cout << "\t" << extension.extensionName << "\n";
+	std::cout << "\n";
+#endif
+
+	for (const auto& requiredExtension : m_deviceExtensions)
+	{
+		bool isSupported = false;
+		for (const auto& extension : extensions)
+		{
+			if (strcmp(requiredExtension, extension.extensionName))
+			{
+				isSupported = true;
+				break;
+			}
+		}
+
+		if (!isSupported)
+			return false;
+	}
+
+	return true;
+}
+
 void VkApplication::PickVkPhysicalDevice()
 {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
 
 	if (deviceCount == 0)
-		throw std::runtime_error("VUKAN INIT ERROR : Can't find physical devices (GPUs) supported by Vulkan Instance !");
+		throw std::runtime_error("\nVUKAN INIT ERROR : Can't find physical devices (GPUs) supported by Vulkan Instance !\n");
 
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
@@ -374,7 +418,7 @@ void VkApplication::PickVkPhysicalDevice()
 	}
 
 	if (m_mainDevice.physDevice == nullptr)
-		throw std::runtime_error("\nVULKAN INIT ERROR : Can't find suitable physical devices !");
+		throw std::runtime_error("\nVULKAN INIT ERROR : Can't find suitable physical devices !\n");
 }
 
 std::vector<const char*> VkApplication::GetRequiredInstanceExtensions()

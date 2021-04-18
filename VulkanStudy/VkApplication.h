@@ -29,6 +29,7 @@ private:
 	void PickVkPhysicalDevice();
 
 	bool CheckVkValidationLayersSupport();
+	bool CheckVkDeviceExtensionsSupport();
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
 
@@ -43,6 +44,7 @@ private:
 	VkSurfaceKHR m_surface;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
 	std::vector<const char*> m_validationLayers = { "VK_LAYER_KHRONOS_validation" };
+	std::vector<const char*> m_deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	bool m_enableValidationLayer;
 };
 
