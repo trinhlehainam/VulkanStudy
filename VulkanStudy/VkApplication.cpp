@@ -161,6 +161,10 @@ void VkApplication::CreateVkSurface()
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create VkSurface !\n");
 }
 
+void VkApplication::CreateSwapchain()
+{
+}
+
 void VkApplication::SetUpVkDebugMessengerEXT()
 {
 	if (!m_enableValidationLayer) return;
@@ -194,6 +198,54 @@ void VkApplication::PickVkPhysicalDevice()
 
 	if (m_mainDevice.physDevice == nullptr)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Can't find suitable physical devices !\n");
+}
+
+VkSurfaceFormatKHR VkApplication::PickVkSurfaceFormats(const std::vector<VkSurfaceFormatKHR>& formats)
+{
+	if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+		return { VK_FORMAT_R8G8B8A8_UNORM ,VK_COLORSPACE_SRGB_NONLINEAR_KHR };
+
+	for (const auto& format : formats)
+	{
+		if ((format.format == VK_FORMAT_R8G8B8A8_UNORM || format.format == VK_FORMAT_B8G8R8A8_SRGB) &&
+			format.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
+		{
+			return format;
+		}
+	}
+	return formats[0];
+}
+
+VkPresentModeKHR VkApplication::PickVkPresentModes(const std::vector<VkPresentModeKHR>& presentModes)
+{
+	for (const auto& presentMode : presentModes)
+	{
+		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+			return presentMode;
+	}
+
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D VkApplication::PickVkSwapchainImageExtent(const std::vector<VkSurfaceCapabilitiesKHR>& capabilities)
+{
+	for (const auto& capability : capabilities)
+	{
+		// If system return max value mean extent can be varied or changed
+		if (capability.currentExtent.width != UINT32_MAX)
+			return capability.currentExtent;
+		else
+		{
+			int width, height;
+			// Request window's size from system
+			glfwGetFramebufferSize(m_window, &width, &height);
+
+			VkExtent2D actualExtent = { static_cast<uint32_t>(width),static_cast<uint32_t>(height) };
+			
+		}
+	}
+
+	return VkExtent2D();
 }
 
 std::vector<const char*> VkApplication::GetRequiredInstanceExtensions()

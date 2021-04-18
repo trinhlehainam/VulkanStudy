@@ -23,9 +23,14 @@ private:
 	void CreateVkInstance();
 	void CreateVkLogicalDevice();
 	void CreateVkSurface();
+	void CreateSwapchain();
 
 	void SetUpVkDebugMessengerEXT();
+
 	void PickVkPhysicalDevice();
+	VkSurfaceFormatKHR PickVkSurfaceFormats(const std::vector<VkSurfaceFormatKHR>& formats);
+	VkPresentModeKHR PickVkPresentModes(const std::vector<VkPresentModeKHR>& presentModes);
+	VkExtent2D PickVkSwapchainImageExtent(const std::vector<VkSurfaceCapabilitiesKHR>& capabilities);
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
 
