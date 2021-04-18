@@ -23,8 +23,11 @@ private:
 	void CreateVkInstance();
 	void CreateVkLogicalDevice();
 	void SetUpVkDebugMessengerEXT();
+
 	void GetVkPhysicalDevice();
+
 	bool CheckVkValidationLayersSupport();
+
 	std::vector<const char*> GetRequiredInstanceExtensions();
 
 	GLFWwindow* m_window;
