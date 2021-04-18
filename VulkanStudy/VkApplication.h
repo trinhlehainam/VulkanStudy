@@ -25,7 +25,6 @@ private:
 	void CreateVkSurface();
 
 	void SetUpVkDebugMessengerEXT();
-
 	void PickVkPhysicalDevice();
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
@@ -40,7 +39,6 @@ private:
 	VkQueue m_presentationQueue;
 	VkSurfaceKHR m_surface;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
-	std::vector<const char*> m_validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	
 	bool m_enableValidationLayer;
 };
