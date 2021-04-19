@@ -30,7 +30,7 @@ private:
 	void PickVkPhysicalDevice();
 	VkSurfaceFormatKHR PickVkSurfaceFormats(const std::vector<VkSurfaceFormatKHR>& formats);
 	VkPresentModeKHR PickVkPresentModes(const std::vector<VkPresentModeKHR>& presentModes);
-	VkExtent2D PickVkSwapchainImageExtent(const std::vector<VkSurfaceCapabilitiesKHR>& capabilities);
+	VkExtent2D PickVkSwapchainImageExtent(const VkSurfaceCapabilitiesKHR& capability);
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
 
@@ -43,6 +43,7 @@ private:
 	VkQueue m_graphicsQueue;
 	VkQueue m_presentationQueue;
 	VkSurfaceKHR m_surface;
+	VkSwapchainKHR m_swapchain;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
 	
 	bool m_enableValidationLayer;
