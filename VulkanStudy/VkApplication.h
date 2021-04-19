@@ -44,6 +44,9 @@ private:
 	VkQueue m_presentationQueue;
 	VkSurfaceKHR m_surface;
 	VkSwapchainKHR m_swapchain;
+	std::vector<VkImage> m_swapchainImages;
+	VkFormat m_swapchainFormat;
+	VkExtent2D m_swapchainExtent;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
 	
 	bool m_enableValidationLayer;

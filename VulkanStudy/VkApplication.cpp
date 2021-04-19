@@ -213,6 +213,15 @@ void VkApplication::CreateSwapchain()
 
 	if (vkCreateSwapchainKHR(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_swapchain) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create swapchain !\n");
+
+	// When swapchain is created, it also created images in it
+	// Retrieve these images to do rendering operation
+	vkGetSwapchainImagesKHR(m_mainDevice.logicalDevice, m_swapchain, &imageCount, nullptr);
+	m_swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(m_mainDevice.logicalDevice, m_swapchain, &imageCount, m_swapchainImages.data());
+
+	m_swapchainFormat = format.format;
+	m_swapchainExtent = extent;
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
