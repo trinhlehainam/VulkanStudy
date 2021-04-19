@@ -42,11 +42,13 @@ void VkApplication::InitWindow()
 
 void VkApplication::InitVulkan()
 {
-	CreateVkInstance();
+	CreateInstance();
 	SetUpVkDebugMessengerEXT();
-	CreateVkSurface();
+	CreateSurface();
 	PickVkPhysicalDevice();
-	CreateVkLogicalDevice();
+	CreateLogicalDevice();
+	CreateSwapchain();
+	CreateImageViews();
 }
 
 void VkApplication::MainLoop()
@@ -61,6 +63,9 @@ void VkApplication::CleanUp()
 {
 	if (m_enableValidationLayer)
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+	for (auto& imageView : m_imageViews)
+		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
+	vkDestroySwapchainKHR(m_mainDevice.logicalDevice, m_swapchain, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
@@ -68,7 +73,7 @@ void VkApplication::CleanUp()
 	glfwTerminate();
 }
 
-void VkApplication::CreateVkInstance()
+void VkApplication::CreateInstance()
 {
 	// Information about application
 	VkApplicationInfo appInfo = {};
@@ -111,7 +116,7 @@ void VkApplication::CreateVkInstance()
 		throw std::runtime_error("\nVULKAN INIT ERROR : falied to create Vulkan instance!\n");
 }
 
-void VkApplication::CreateVkLogicalDevice()
+void VkApplication::CreateLogicalDevice()
 {
 	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
 
@@ -155,7 +160,7 @@ void VkApplication::CreateVkLogicalDevice()
 	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.presentationFamily, 0, &m_presentationQueue);
 }
 
-void VkApplication::CreateVkSurface()
+void VkApplication::CreateSurface()
 {
 	if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create VkSurface !\n");
@@ -163,6 +168,90 @@ void VkApplication::CreateVkSurface()
 
 void VkApplication::CreateSwapchain()
 {
+	auto details = VkUtils::CheckSwapChainDetails(m_mainDevice.physDevice, m_surface);
+
+	auto extent = PickVkSwapchainImageExtent(details.Capabilities);
+	auto presentMode = PickVkPresentModes(details.PresentModes);
+	auto format = PickVkSurfaceFormats(details.Formats);
+
+	// Provide one more image to keep GPU busy
+	auto imageCount = details.Capabilities.minImageCount + 1;
+
+	// If maxImageCount = 0, it means there is no limit
+	if (details.Capabilities.maxImageCount > 0 && imageCount > details.Capabilities.maxImageCount)
+		imageCount = details.Capabilities.maxImageCount;
+
+	VkSwapchainCreateInfoKHR createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.surface = m_surface;
+	createInfo.imageFormat = format.format;
+	createInfo.imageColorSpace = format.colorSpace;
+	createInfo.imageExtent = extent;
+	createInfo.minImageCount = imageCount;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
+	uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentationFamily };
+
+	if (indices.graphicsFamily != indices.presentationFamily)
+	{
+		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		createInfo.queueFamilyIndexCount = 2;
+		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+	}
+	else
+	{
+		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+	}
+
+	createInfo.preTransform = details.Capabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.presentMode = presentMode;
+
+	createInfo.clipped = VK_TRUE;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	if (vkCreateSwapchainKHR(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_swapchain) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create swapchain !\n");
+
+	// When swapchain is created, it also created images in it
+	// Retrieve these images to do rendering operation
+	vkGetSwapchainImagesKHR(m_mainDevice.logicalDevice, m_swapchain, &imageCount, nullptr);
+	m_swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(m_mainDevice.logicalDevice, m_swapchain, &imageCount, m_swapchainImages.data());
+
+	m_swapchainFormat = format.format;
+	m_swapchainExtent = extent;
+}
+
+void VkApplication::CreateImageViews()
+{
+	m_imageViews.resize(m_swapchainImages.size());
+
+	for (int i = 0; i < m_swapchainImages.size(); ++i)
+	{
+		VkImageViewCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.format = m_swapchainFormat;
+		createInfo.image = m_swapchainImages[i];
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+		createInfo.subresourceRange.levelCount = 1;
+
+		if (vkCreateImageView(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
+			throw std::runtime_error("\nVUKAN INIT ERROR : Failed to create Image Views !\n");
+	}
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
@@ -213,6 +302,7 @@ VkSurfaceFormatKHR VkApplication::PickVkSurfaceFormats(const std::vector<VkSurfa
 			return format;
 		}
 	}
+
 	return formats[0];
 }
 
@@ -227,25 +317,23 @@ VkPresentModeKHR VkApplication::PickVkPresentModes(const std::vector<VkPresentMo
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VkApplication::PickVkSwapchainImageExtent(const std::vector<VkSurfaceCapabilitiesKHR>& capabilities)
+VkExtent2D VkApplication::PickVkSwapchainImageExtent(const VkSurfaceCapabilitiesKHR& capability)
 {
-	for (const auto& capability : capabilities)
+	// If system return max value mean extent can be varied or changed
+	if (capability.currentExtent.width != UINT32_MAX)
+		return capability.currentExtent;
+	else
 	{
-		// If system return max value mean extent can be varied or changed
-		if (capability.currentExtent.width != UINT32_MAX)
-			return capability.currentExtent;
-		else
-		{
-			int width, height;
-			// Request window's size from system
-			glfwGetFramebufferSize(m_window, &width, &height);
+		int width, height;
+		// Request window's size from system
+		glfwGetFramebufferSize(m_window, &width, &height);
 
-			VkExtent2D actualExtent = { static_cast<uint32_t>(width),static_cast<uint32_t>(height) };
-			
-		}
+		VkExtent2D actualExtent = { static_cast<uint32_t>(width),static_cast<uint32_t>(height) };
+		actualExtent.width = std::max(capability.minImageExtent.width, std::min(capability.maxImageExtent.width, actualExtent.width));
+		actualExtent.height = std::max(capability.minImageExtent.height, std::min(capability.maxImageExtent.height, actualExtent.height));
+
+		return actualExtent;
 	}
-
-	return VkExtent2D();
 }
 
 std::vector<const char*> VkApplication::GetRequiredInstanceExtensions()

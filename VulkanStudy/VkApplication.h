@@ -20,17 +20,18 @@ private:
 	void MainLoop();
 	void CleanUp();
 
-	void CreateVkInstance();
-	void CreateVkLogicalDevice();
-	void CreateVkSurface();
+	void CreateInstance();
+	void CreateLogicalDevice();
+	void CreateSurface();
 	void CreateSwapchain();
+	void CreateImageViews();
 
 	void SetUpVkDebugMessengerEXT();
 
 	void PickVkPhysicalDevice();
 	VkSurfaceFormatKHR PickVkSurfaceFormats(const std::vector<VkSurfaceFormatKHR>& formats);
 	VkPresentModeKHR PickVkPresentModes(const std::vector<VkPresentModeKHR>& presentModes);
-	VkExtent2D PickVkSwapchainImageExtent(const std::vector<VkSurfaceCapabilitiesKHR>& capabilities);
+	VkExtent2D PickVkSwapchainImageExtent(const VkSurfaceCapabilitiesKHR& capability);
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
 
@@ -43,6 +44,11 @@ private:
 	VkQueue m_graphicsQueue;
 	VkQueue m_presentationQueue;
 	VkSurfaceKHR m_surface;
+	VkSwapchainKHR m_swapchain;
+	std::vector<VkImage> m_swapchainImages;
+	VkFormat m_swapchainFormat;
+	VkExtent2D m_swapchainExtent;
+	std::vector<VkImageView> m_imageViews;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
 	
 	bool m_enableValidationLayer;
