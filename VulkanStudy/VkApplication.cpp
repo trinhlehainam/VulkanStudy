@@ -42,12 +42,13 @@ void VkApplication::InitWindow()
 
 void VkApplication::InitVulkan()
 {
-	CreateVkInstance();
+	CreateInstance();
 	SetUpVkDebugMessengerEXT();
-	CreateVkSurface();
+	CreateSurface();
 	PickVkPhysicalDevice();
-	CreateVkLogicalDevice();
+	CreateLogicalDevice();
 	CreateSwapchain();
+	CreateImageViews();
 }
 
 void VkApplication::MainLoop()
@@ -62,6 +63,8 @@ void VkApplication::CleanUp()
 {
 	if (m_enableValidationLayer)
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+	for (auto& imageView : m_imageViews)
+		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
 	vkDestroySwapchainKHR(m_mainDevice.logicalDevice, m_swapchain, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
@@ -70,7 +73,7 @@ void VkApplication::CleanUp()
 	glfwTerminate();
 }
 
-void VkApplication::CreateVkInstance()
+void VkApplication::CreateInstance()
 {
 	// Information about application
 	VkApplicationInfo appInfo = {};
@@ -113,7 +116,7 @@ void VkApplication::CreateVkInstance()
 		throw std::runtime_error("\nVULKAN INIT ERROR : falied to create Vulkan instance!\n");
 }
 
-void VkApplication::CreateVkLogicalDevice()
+void VkApplication::CreateLogicalDevice()
 {
 	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
 
@@ -157,7 +160,7 @@ void VkApplication::CreateVkLogicalDevice()
 	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.presentationFamily, 0, &m_presentationQueue);
 }
 
-void VkApplication::CreateVkSurface()
+void VkApplication::CreateSurface()
 {
 	if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create VkSurface !\n");
@@ -222,6 +225,33 @@ void VkApplication::CreateSwapchain()
 
 	m_swapchainFormat = format.format;
 	m_swapchainExtent = extent;
+}
+
+void VkApplication::CreateImageViews()
+{
+	m_imageViews.resize(m_swapchainImages.size());
+
+	for (int i = 0; i < m_swapchainImages.size(); ++i)
+	{
+		VkImageViewCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.format = m_swapchainFormat;
+		createInfo.image = m_swapchainImages[i];
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+		createInfo.subresourceRange.levelCount = 1;
+
+		if (vkCreateImageView(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
+			throw std::runtime_error("\nVUKAN INIT ERROR : Failed to create Image Views !\n");
+	}
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()

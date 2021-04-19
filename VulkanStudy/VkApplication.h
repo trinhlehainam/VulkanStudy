@@ -20,10 +20,11 @@ private:
 	void MainLoop();
 	void CleanUp();
 
-	void CreateVkInstance();
-	void CreateVkLogicalDevice();
-	void CreateVkSurface();
+	void CreateInstance();
+	void CreateLogicalDevice();
+	void CreateSurface();
 	void CreateSwapchain();
+	void CreateImageViews();
 
 	void SetUpVkDebugMessengerEXT();
 
@@ -47,6 +48,7 @@ private:
 	std::vector<VkImage> m_swapchainImages;
 	VkFormat m_swapchainFormat;
 	VkExtent2D m_swapchainExtent;
+	std::vector<VkImageView> m_imageViews;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
 	
 	bool m_enableValidationLayer;
