@@ -1,6 +1,7 @@
 #include "VkUtils.h"
 
 #include <iostream>
+#include <fstream>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageServerities,
@@ -243,5 +244,40 @@ namespace VkUtils
 		}
 
 		return details;
+	}
+
+	std::vector<char> ReadBinaryFile(const char* fileName)
+	{
+		// Read to the end of the file to know file's size
+		std::ifstream file(fileName, std::ios::ate | std::ios::binary);
+		
+		if (!file.is_open())
+			throw std::runtime_error("\nERROR : Failed to open file !\n");
+
+		// Take the last position of byte in this file
+		// This position is the size of the file
+		auto byteCount = static_cast<size_t>(file.tellg());
+
+		// Move to beginning of the file to start reading
+		file.seekg(0);
+
+		std::vector<char> buffer(byteCount);
+		file.read(buffer.data(), byteCount);
+
+		return buffer;
+	}
+
+	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const std::vector<char>& bytecode)
+	{
+		VkShaderModuleCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = bytecode.size();
+		createInfo.pCode = reinterpret_cast<const uint32_t*>(bytecode.data());
+
+		VkShaderModule shaderModule;
+		if (vkCreateShaderModule(device, &createInfo, pAllocator, &shaderModule) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create shader module !\n");
+
+		return shaderModule;
 	}
 }

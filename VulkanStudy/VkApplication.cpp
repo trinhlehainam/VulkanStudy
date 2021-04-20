@@ -49,6 +49,7 @@ void VkApplication::InitVulkan()
 	CreateLogicalDevice();
 	CreateSwapchain();
 	CreateImageViews();
+	CreateGraphicsPipeline();
 }
 
 void VkApplication::MainLoop()
@@ -252,6 +253,15 @@ void VkApplication::CreateImageViews()
 		if (vkCreateImageView(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
 			throw std::runtime_error("\nVUKAN INIT ERROR : Failed to create Image Views !\n");
 	}
+}
+
+void VkApplication::CreateGraphicsPipeline()
+{
+	auto vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, VkUtils::ReadBinaryFile("assets/shaders/vert.spv"));
+	auto fragShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, VkUtils::ReadBinaryFile("assets/shaders/frag.spv"));
+
+	vkDestroyShaderModule(m_mainDevice.logicalDevice, vertShaderModule, nullptr);
+	vkDestroyShaderModule(m_mainDevice.logicalDevice, fragShaderModule, nullptr);
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()

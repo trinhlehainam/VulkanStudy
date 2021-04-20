@@ -25,6 +25,7 @@ private:
 	void CreateSurface();
 	void CreateSwapchain();
 	void CreateImageViews();
+	void CreateGraphicsPipeline();
 
 	void SetUpVkDebugMessengerEXT();
 

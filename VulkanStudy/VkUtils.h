@@ -48,5 +48,9 @@ namespace VkUtils
 	QueueFamilyIndices GetQueueFamiilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 	SwapChainDetails CheckSwapChainDetails(VkPhysicalDevice device, VkSurfaceKHR surface);
+
+	std::vector<char> ReadBinaryFile(const char* fileName);
+
+	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const std::vector<char>& bytecode);
 }
 
