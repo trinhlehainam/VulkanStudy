@@ -11,8 +11,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(
 {
 	if (messageServerities > VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
 		std::cerr << "\nVULKAN DEBUG MESSAGE : " << pCallbackData->pMessage << "\n" << std::endl;
-	else
-		std::cerr << "VULKAN DEBUG MESSAGE : " << pCallbackData->pMessage << std::endl;
 
 	return VK_FALSE;
 }
@@ -252,7 +250,7 @@ namespace VkUtils
 		std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 		
 		if (!file.is_open())
-			throw std::runtime_error("\nERROR : Failed to open file !\n");
+			return std::vector<char>();
 
 		// Take the last position of byte in this file
 		// This position is the size of the file
@@ -264,11 +262,18 @@ namespace VkUtils
 		std::vector<char> buffer(byteCount);
 		file.read(buffer.data(), byteCount);
 
+		file.close();
+
 		return buffer;
 	}
 
-	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const std::vector<char>& bytecode)
+	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const char* spvFileName)
 	{
+		auto bytecode = ReadBinaryFile(spvFileName);
+
+		if (bytecode.empty())
+			throw std::runtime_error("\nVULKAN ERROR : Failed to load shader's bytecode !\n");
+
 		VkShaderModuleCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		createInfo.codeSize = bytecode.size();

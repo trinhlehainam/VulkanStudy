@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 #include <vector>
 
 #define GLFW_INCLUDE_VULKAN
@@ -13,7 +12,7 @@ public:
 private:
 	int m_width;
 	int m_height;
-	std::string m_title;
+	const char* m_title;
 private:
 	void InitWindow();
 	void InitVulkan();

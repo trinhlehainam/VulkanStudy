@@ -49,8 +49,10 @@ namespace VkUtils
 
 	SwapChainDetails CheckSwapChainDetails(VkPhysicalDevice device, VkSurfaceKHR surface);
 
+	// If it failed to open file, return the empty object
 	std::vector<char> ReadBinaryFile(const char* fileName);
 
-	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const std::vector<char>& bytecode);
+	// spvFileName : compiled shader file to use with vulkan
+	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const char* spvFileName);
 }
 

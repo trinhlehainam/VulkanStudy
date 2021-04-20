@@ -37,7 +37,7 @@ void VkApplication::InitWindow()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-	m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
+	m_window = glfwCreateWindow(m_width, m_height, m_title, nullptr, nullptr);
 }
 
 void VkApplication::InitVulkan()
@@ -79,7 +79,7 @@ void VkApplication::CreateInstance()
 	// Information about application
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = m_title.c_str();
+	appInfo.pApplicationName = m_title;
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.pEngineName = "No Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -257,8 +257,22 @@ void VkApplication::CreateImageViews()
 
 void VkApplication::CreateGraphicsPipeline()
 {
-	auto vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, VkUtils::ReadBinaryFile("assets/shaders/vert.spv"));
-	auto fragShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, VkUtils::ReadBinaryFile("assets/shaders/frag.spv"));
+	VkShaderModule vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/vert.sp");
+	VkShaderModule fragShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/frag.spv");
+
+	VkPipelineShaderStageCreateInfo vertStageCreateInfo = {};
+	vertStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertStageCreateInfo.module = vertShaderModule;
+	vertStageCreateInfo.pName = "main";											// main of shader's start up function
+
+	VkPipelineShaderStageCreateInfo fragStageCreateInfo = {};
+	vertStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	vertStageCreateInfo.module = fragShaderModule;
+	vertStageCreateInfo.pName = "main";											// main of shader's start up function
+
+	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertStageCreateInfo , vertStageCreateInfo };
 
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, fragShaderModule, nullptr);
