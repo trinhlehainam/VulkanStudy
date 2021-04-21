@@ -53,6 +53,8 @@ void VkApplication::InitVulkan()
 	CreateRenderPass();
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
+	CreateCommandPool();
+	AllocateCommandBuffers();
 }
 
 void VkApplication::MainLoop()
@@ -71,6 +73,7 @@ void VkApplication::CleanUp()
 		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
+	vkDestroyCommandPool(m_mainDevice.logicalDevice, m_cmdPool, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
 	vkDestroyRenderPass(m_mainDevice.logicalDevice, m_renderPass, nullptr);
@@ -78,6 +81,7 @@ void VkApplication::CleanUp()
 	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
+
 	glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
@@ -451,6 +455,32 @@ void VkApplication::CreateFramebuffers()
 			throw std::runtime_error("\nVULKAN ERROR : Failed to create framebuffer !\n");
 
 	}
+}
+
+void VkApplication::CreateCommandPool()
+{
+	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physicalDevice, m_surface);
+
+	VkCommandPoolCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	createInfo.queueFamilyIndex = indices.graphicsFamily;
+
+	if (vkCreateCommandPool(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_cmdPool) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create command pool !\n");
+}
+
+void VkApplication::AllocateCommandBuffers()
+{
+	m_cmdBuffers.resize(m_swapchainFramebuffers.size());
+
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = m_cmdPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = static_cast<uint32_t>(m_cmdBuffers.size());
+
+	if (vkAllocateCommandBuffers(m_mainDevice.logicalDevice, &allocInfo, m_cmdBuffers.data()) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate command buffers!\n");
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()

@@ -27,6 +27,8 @@ private:
 	void CreateRenderPass();
 	void CreateGraphicsPipeline();
 	void CreateFramebuffers();
+	void CreateCommandPool();
+	void AllocateCommandBuffers();
 
 	void SetUpVkDebugMessengerEXT();
 
@@ -61,5 +63,7 @@ private:
 	VkPipelineLayout m_pipelineLayout;
 	VkPipeline m_graphicsPipeline;
 	std::vector<VkFramebuffer> m_swapchainFramebuffers;
+	VkCommandPool m_cmdPool;
+	std::vector<VkCommandBuffer> m_cmdBuffers;
 };
 
