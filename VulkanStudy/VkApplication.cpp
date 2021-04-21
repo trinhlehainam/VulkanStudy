@@ -68,6 +68,7 @@ void VkApplication::CleanUp()
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
+	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
 	vkDestroyRenderPass(m_mainDevice.logicalDevice, m_renderPass, nullptr);
 	vkDestroySwapchainKHR(m_mainDevice.logicalDevice, m_swapchain, nullptr);
@@ -304,12 +305,12 @@ void VkApplication::CreateGraphicsPipeline()
 	vertStageCreateInfo.pName = "main";											// main of shader's start up function
 
 	VkPipelineShaderStageCreateInfo fragStageCreateInfo {};
-	vertStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	vertStageCreateInfo.module = fragShaderModule;
-	vertStageCreateInfo.pName = "main";											// main of shader's start up function
+	fragStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragStageCreateInfo.module = fragShaderModule;
+	fragStageCreateInfo.pName = "main";											// main of shader's start up function
 
-	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertStageCreateInfo , vertStageCreateInfo };
+	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertStageCreateInfo , fragStageCreateInfo };
 
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo {};
 	vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -400,6 +401,27 @@ void VkApplication::CreateGraphicsPipeline()
 
 	if (vkCreatePipelineLayout(m_mainDevice.logicalDevice, &layoutCreateInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create pipeline layout !\n");
+
+	VkGraphicsPipelineCreateInfo graphicsCreateInfo{};
+	graphicsCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	graphicsCreateInfo.stageCount = _countof(shaderStageCreateInfos);
+	graphicsCreateInfo.pStages = shaderStageCreateInfos;
+	graphicsCreateInfo.pVertexInputState = &vertexInputCreateInfo;
+	graphicsCreateInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
+	graphicsCreateInfo.pViewportState = &viewportCreateInfo;
+	graphicsCreateInfo.pRasterizationState = &rasterizerCreateInfo;
+	graphicsCreateInfo.pMultisampleState = &multisampleCreateInfo;
+	graphicsCreateInfo.pColorBlendState = &colorBlendCreateInfo;
+	graphicsCreateInfo.pDynamicState = &dynamicCreateInfo;
+	graphicsCreateInfo.renderPass = m_renderPass;
+	graphicsCreateInfo.subpass = 0;
+	graphicsCreateInfo.layout = m_pipelineLayout;
+	graphicsCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+	graphicsCreateInfo.basePipelineIndex = -1;
+
+	if (vkCreateGraphicsPipelines(m_mainDevice.logicalDevice, VK_NULL_HANDLE, 1, &graphicsCreateInfo, nullptr, &m_graphicsPipeline)
+		!= VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Falied to create graphics pipeline !\n");
 
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, fragShaderModule, nullptr);
