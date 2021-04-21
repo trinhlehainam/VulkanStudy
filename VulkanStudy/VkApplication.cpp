@@ -50,6 +50,7 @@ void VkApplication::InitVulkan()
 	CreateLogicalDevice();
 	CreateSwapchain();
 	CreateImageViews();
+	CreateRenderPass();
 	CreateGraphicsPipeline();
 }
 
@@ -68,6 +69,7 @@ void VkApplication::CleanUp()
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
+	vkDestroyRenderPass(m_mainDevice.logicalDevice, m_renderPass, nullptr);
 	vkDestroySwapchainKHR(m_mainDevice.logicalDevice, m_swapchain, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
@@ -255,6 +257,39 @@ void VkApplication::CreateImageViews()
 		if (vkCreateImageView(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
 			throw std::runtime_error("\nVUKAN INIT ERROR : Failed to create Image Views !\n");
 	}
+}
+
+void VkApplication::CreateRenderPass()
+{
+	VkAttachmentDescription attachment{};
+	attachment.format = m_swapchainFormat;
+	attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference attachmentRef{};
+	attachmentRef.attachment = 0;				// attachment's index
+	attachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass{};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &attachmentRef;
+
+	VkRenderPassCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	createInfo.attachmentCount = 1;
+	createInfo.pAttachments = &attachment;
+	createInfo.subpassCount = 1;
+	createInfo.pSubpasses = &subpass;
+
+	if (vkCreateRenderPass(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_renderPass) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create render pass !\n");
+
 }
 
 void VkApplication::CreateGraphicsPipeline()

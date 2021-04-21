@@ -24,6 +24,7 @@ private:
 	void CreateSurface();
 	void CreateSwapchain();
 	void CreateImageViews();
+	void CreateRenderPass();
 	void CreateGraphicsPipeline();
 
 	void SetUpVkDebugMessengerEXT();
@@ -55,6 +56,7 @@ private:
 	VkExtent2D m_swapchainExtent;
 	std::vector<VkImageView> m_imageViews;
 
+	VkRenderPass m_renderPass;
 	VkPipelineLayout m_pipelineLayout;
 };
 
