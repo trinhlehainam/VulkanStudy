@@ -274,7 +274,7 @@ namespace VkUtils
 		if (bytecode.empty())
 			throw std::runtime_error("\nVULKAN ERROR : Failed to load shader's bytecode !\n");
 
-		VkShaderModuleCreateInfo createInfo = {};
+		VkShaderModuleCreateInfo createInfo {};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		createInfo.codeSize = bytecode.size();
 		createInfo.pCode = reinterpret_cast<const uint32_t*>(bytecode.data());

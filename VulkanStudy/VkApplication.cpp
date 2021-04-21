@@ -1,6 +1,7 @@
 #include "VkApplication.h"
 
 #include <iostream>
+#include <algorithm>
 #include <cstdint>
 #include <set>
 
@@ -77,7 +78,7 @@ void VkApplication::CleanUp()
 void VkApplication::CreateInstance()
 {
 	// Information about application
-	VkApplicationInfo appInfo = {};
+	VkApplicationInfo appInfo {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = m_title;
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -86,7 +87,7 @@ void VkApplication::CreateInstance()
 	appInfo.apiVersion = VK_API_VERSION_1_2;
 
 	// Struct carries info to create VkInstance
-	VkInstanceCreateInfo vkCreateInfo = {};
+	VkInstanceCreateInfo vkCreateInfo {};
 	vkCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	vkCreateInfo.pApplicationInfo = &appInfo;
 
@@ -101,7 +102,7 @@ void VkApplication::CreateInstance()
 	if (m_enableValidationLayer && !VkUtils::CheckVkValidationLayersSupport(VkUtils::VALIDATION_LAYERS))
 		throw std::runtime_error("\nVULKAN INIT ERROR : vallidation layers required , but not found !\n");
 
-	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
+	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo {};
 	if (m_enableValidationLayer)
 	{
 		vkCreateInfo.enabledLayerCount = static_cast<uint32_t>(VkUtils::VALIDATION_LAYERS.size());
@@ -134,7 +135,7 @@ void VkApplication::CreateLogicalDevice()
 	float priority = 1.0f;
 	for (auto queueIndex : queueFamilyIndices)
 	{
-		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		VkDeviceQueueCreateInfo queueCreateInfo {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queueCreateInfo.queueCount = 1;
 		queueCreateInfo.queueFamilyIndex = queueIndex;
@@ -143,14 +144,14 @@ void VkApplication::CreateLogicalDevice()
 		queueCreateInfos.push_back(queueCreateInfo);
 	}
 	
-	VkDeviceCreateInfo createInfo = {};
+	VkDeviceCreateInfo createInfo {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(VkUtils::DEVICE_EXTENSIONS.size());
 	createInfo.ppEnabledExtensionNames = VkUtils::DEVICE_EXTENSIONS.data();
 
-	VkPhysicalDeviceFeatures features = {};
+	VkPhysicalDeviceFeatures features {};
 	createInfo.pEnabledFeatures = &features;
 
 	if (vkCreateDevice(m_mainDevice.physDevice, &createInfo, nullptr, &m_mainDevice.logicalDevice) != VK_SUCCESS)
@@ -182,7 +183,7 @@ void VkApplication::CreateSwapchain()
 	if (details.Capabilities.maxImageCount > 0 && imageCount > details.Capabilities.maxImageCount)
 		imageCount = details.Capabilities.maxImageCount;
 
-	VkSwapchainCreateInfoKHR createInfo = {};
+	VkSwapchainCreateInfoKHR createInfo {};
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.surface = m_surface;
 	createInfo.imageFormat = format.format;
@@ -234,7 +235,7 @@ void VkApplication::CreateImageViews()
 
 	for (int i = 0; i < m_swapchainImages.size(); ++i)
 	{
-		VkImageViewCreateInfo createInfo = {};
+		VkImageViewCreateInfo createInfo {};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		createInfo.format = m_swapchainFormat;
 		createInfo.image = m_swapchainImages[i];
@@ -260,13 +261,13 @@ void VkApplication::CreateGraphicsPipeline()
 	VkShaderModule vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/vert.sp");
 	VkShaderModule fragShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/frag.spv");
 
-	VkPipelineShaderStageCreateInfo vertStageCreateInfo = {};
+	VkPipelineShaderStageCreateInfo vertStageCreateInfo {};
 	vertStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vertStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 	vertStageCreateInfo.module = vertShaderModule;
 	vertStageCreateInfo.pName = "main";											// main of shader's start up function
 
-	VkPipelineShaderStageCreateInfo fragStageCreateInfo = {};
+	VkPipelineShaderStageCreateInfo fragStageCreateInfo {};
 	vertStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vertStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	vertStageCreateInfo.module = fragShaderModule;
@@ -274,6 +275,72 @@ void VkApplication::CreateGraphicsPipeline()
 
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertStageCreateInfo , vertStageCreateInfo };
 
+	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo {};
+	vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
+	vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;
+	vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo {};
+	inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+	VkViewport viewport{};
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = static_cast<float>(m_width);
+	viewport.height = static_cast<float>(m_height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 0.0f;
+
+	VkRect2D scissor{};
+	scissor.offset = { 0 , 0 };
+	scissor.extent = m_swapchainExtent;
+
+	VkPipelineViewportStateCreateInfo viewportCreateInfo{};
+	viewportCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportCreateInfo.viewportCount = 1;
+	viewportCreateInfo.pViewports = &viewport;
+	viewportCreateInfo.scissorCount = 1;
+	viewportCreateInfo.pScissors = &scissor;
+
+	VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo{};
+	rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+	rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizerCreateInfo.lineWidth = 1.0f;
+	rasterizerCreateInfo.depthClampEnable = VK_FALSE;
+	rasterizerCreateInfo.depthBiasEnable = VK_FALSE;
+	rasterizerCreateInfo.depthBiasConstantFactor = 0.0f;
+	rasterizerCreateInfo.depthBiasClamp = 0.0f;
+	rasterizerCreateInfo.depthBiasSlopeFactor = 0.0f;
+
+	VkPipelineMultisampleStateCreateInfo multisampleCreateInfo{};
+	multisampleCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleCreateInfo.sampleShadingEnable = VK_FALSE;
+	multisampleCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleCreateInfo.minSampleShading = 1.0f;
+	multisampleCreateInfo.pSampleMask = nullptr;
+	multisampleCreateInfo.alphaToCoverageEnable = VK_FALSE;
+	multisampleCreateInfo.alphaToOneEnable = VK_FALSE;
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+	colorBlendAttachment.blendEnable = VK_FALSE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	VkPipelineColorBlendStateCreateInfo colorBlendCreateInfo{};
+	colorBlendCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, fragShaderModule, nullptr);
 }
@@ -282,7 +349,7 @@ void VkApplication::SetUpVkDebugMessengerEXT()
 {
 	if (!m_enableValidationLayer) return;
 
-	VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+	VkDebugUtilsMessengerCreateInfoEXT createInfo {};
 	VkUtils::PopulateVkDebugMessengerCreateInfo(createInfo);
 
 	if (VkUtils::CreateVkDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS)
