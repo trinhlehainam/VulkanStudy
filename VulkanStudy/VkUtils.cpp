@@ -58,12 +58,12 @@ namespace VkUtils
 
 #ifdef _DEBUG || DEBUG
 		std::cout << "\n" << requiredExtensions.size() << " required instance extensions \n";
-		std::cout << "REQUIRED INSTANCE EXTENSIONS : \n";
+		std::cout << "VULKAN REQUIRED INSTANCE EXTENSIONS : \n";
 		for (const auto& requiredExtension : requiredExtensions)
 			std::cout << "\t" << requiredExtension << "\n";
 
 		std::cout << "\n" << extensionsCount << " instance extensions are supported by Vulkan \n";
-		std::cout << "INSTANCE EXTENSIONS : \n";
+		std::cout << "VULKAN INSTANCE EXTENSIONS : \n";
 		for (const auto& supportExtension : vkSupportExtensions)
 			std::cout << "\t" << supportExtension.extensionName << "\n";
 #endif
@@ -96,7 +96,7 @@ namespace VkUtils
 
 #ifdef _DEBUG || DEBUG
 		std::cout << "\n" << layerCount << " validations layers supported by Vulkan \n";
-		std::cout << "SUPPORTED VALIDATION LAYERS : \n";
+		std::cout << "VULKAN SUPPORTED VALIDATION LAYERS : \n";
 		for (const auto& layer : supportLayers)
 			std::cout << "\t" << layer.layerName << "\n";
 		std::cout << "\n";
@@ -133,7 +133,7 @@ namespace VkUtils
 		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
 
 #ifdef _DEBUG || DEBUG
-		std::cout << "\nSUPPORTED DEVICE EXTENSIONS :\n";
+		std::cout << "\nVULKAN SUPPORTED DEVICE EXTENSIONS :\n";
 		for (const auto& extension : extensions)
 			std::cout << "\t" << extension.extensionName << "\n";
 		std::cout << "\n";

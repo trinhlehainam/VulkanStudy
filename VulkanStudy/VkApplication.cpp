@@ -67,6 +67,7 @@ void VkApplication::CleanUp()
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
+	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
 	vkDestroySwapchainKHR(m_mainDevice.logicalDevice, m_swapchain, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
@@ -120,7 +121,7 @@ void VkApplication::CreateInstance()
 
 void VkApplication::CreateLogicalDevice()
 {
-	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
+	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physicalDevice, m_surface);
 
 	// std::set only allow one object to hold one specific value
 	// Use std::set to check if presentation queue is inside graphics queue or in the seperate queue
@@ -154,7 +155,7 @@ void VkApplication::CreateLogicalDevice()
 	VkPhysicalDeviceFeatures features {};
 	createInfo.pEnabledFeatures = &features;
 
-	if (vkCreateDevice(m_mainDevice.physDevice, &createInfo, nullptr, &m_mainDevice.logicalDevice) != VK_SUCCESS)
+	if (vkCreateDevice(m_mainDevice.physicalDevice, &createInfo, nullptr, &m_mainDevice.logicalDevice) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create logical devices !\n");
 
 	// Get Queue that created inside logical device to use later
@@ -170,7 +171,7 @@ void VkApplication::CreateSurface()
 
 void VkApplication::CreateSwapchain()
 {
-	auto details = VkUtils::CheckSwapChainDetails(m_mainDevice.physDevice, m_surface);
+	auto details = VkUtils::CheckSwapChainDetails(m_mainDevice.physicalDevice, m_surface);
 
 	auto extent = PickVkSwapchainImageExtent(details.Capabilities);
 	auto presentMode = PickVkPresentModes(details.PresentModes);
@@ -193,7 +194,7 @@ void VkApplication::CreateSwapchain()
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physDevice, m_surface);
+	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physicalDevice, m_surface);
 	uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentationFamily };
 
 	if (indices.graphicsFamily != indices.presentationFamily)
@@ -258,7 +259,7 @@ void VkApplication::CreateImageViews()
 
 void VkApplication::CreateGraphicsPipeline()
 {
-	VkShaderModule vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/vert.sp");
+	VkShaderModule vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/vert.spv");
 	VkShaderModule fragShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/frag.spv");
 
 	VkPipelineShaderStageCreateInfo vertStageCreateInfo {};
@@ -328,19 +329,43 @@ void VkApplication::CreateGraphicsPipeline()
 	multisampleCreateInfo.alphaToCoverageEnable = VK_FALSE;
 	multisampleCreateInfo.alphaToOneEnable = VK_FALSE;
 
-	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-	colorBlendAttachment.blendEnable = VK_FALSE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	VkPipelineColorBlendAttachmentState attachment{};
+	attachment.blendEnable = VK_FALSE;
+	attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	attachment.colorBlendOp = VK_BLEND_OP_ADD;
+	attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	VkPipelineColorBlendStateCreateInfo colorBlendCreateInfo{};
 	colorBlendCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	
+	colorBlendCreateInfo.logicOpEnable = VK_FALSE;
+	colorBlendCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+	colorBlendCreateInfo.attachmentCount = 1;
+	colorBlendCreateInfo.pAttachments = &attachment;
+
+	VkDynamicState dynamicStates[] = {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicCreateInfo{};
+	dynamicCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicCreateInfo.dynamicStateCount = _countof(dynamicStates);
+	dynamicCreateInfo.pDynamicStates = dynamicStates;
+
+	VkPipelineLayoutCreateInfo layoutCreateInfo{};
+	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	layoutCreateInfo.setLayoutCount = 0;
+	layoutCreateInfo.pSetLayouts = nullptr;
+	layoutCreateInfo.pushConstantRangeCount = 0;
+	layoutCreateInfo.pPushConstantRanges = nullptr;
+
+	if (vkCreatePipelineLayout(m_mainDevice.logicalDevice, &layoutCreateInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create pipeline layout !\n");
+
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, fragShaderModule, nullptr);
 }
@@ -371,12 +396,12 @@ void VkApplication::PickVkPhysicalDevice()
 	{
 		if (VkUtils::CheckVkPhysicalDeviceSuitable(device, m_surface))
 		{
-			m_mainDevice.physDevice = device;
+			m_mainDevice.physicalDevice = device;
 			break;
 		}	
 	}
 
-	if (m_mainDevice.physDevice == nullptr)
+	if (m_mainDevice.physicalDevice == nullptr)
 		throw std::runtime_error("\nVULKAN INIT ERROR : Can't find suitable physical devices !\n");
 }
 

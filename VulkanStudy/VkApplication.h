@@ -37,20 +37,24 @@ private:
 
 	GLFWwindow* m_window;
 	VkInstance m_instance;
+
+	bool m_enableValidationLayer;
+
+	VkDebugUtilsMessengerEXT m_debugMessenger;
 	struct{
-		VkPhysicalDevice physDevice;
+		VkPhysicalDevice physicalDevice;
 		VkDevice logicalDevice;
 	}m_mainDevice;
 	VkQueue m_graphicsQueue;
 	VkQueue m_presentationQueue;
+
 	VkSurfaceKHR m_surface;
 	VkSwapchainKHR m_swapchain;
 	std::vector<VkImage> m_swapchainImages;
 	VkFormat m_swapchainFormat;
 	VkExtent2D m_swapchainExtent;
 	std::vector<VkImageView> m_imageViews;
-	VkDebugUtilsMessengerEXT m_debugMessenger;
-	
-	bool m_enableValidationLayer;
+
+	VkPipelineLayout m_pipelineLayout;
 };
 
