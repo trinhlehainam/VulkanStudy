@@ -13,7 +13,7 @@
 #include "VkUtils.h"
 
 VkApplication::VkApplication(int width, int height, const char* window_title):
-	m_width(width),m_height(height),m_title(window_title)
+	m_screenWidth(width),m_screenHeight(height),m_title(window_title)
 {
 #ifdef _DEBUG || DEBUG
 	m_enableValidationLayer = true;
@@ -38,7 +38,7 @@ void VkApplication::InitWindow()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-	m_window = glfwCreateWindow(m_width, m_height, m_title, nullptr, nullptr);
+	m_window = glfwCreateWindow(m_screenWidth, m_screenHeight, m_title, nullptr, nullptr);
 }
 
 void VkApplication::InitVulkan()
@@ -52,6 +52,7 @@ void VkApplication::InitVulkan()
 	CreateImageViews();
 	CreateRenderPass();
 	CreateGraphicsPipeline();
+	CreateFramebuffers();
 }
 
 void VkApplication::MainLoop()
@@ -66,6 +67,8 @@ void VkApplication::CleanUp()
 {
 	if (m_enableValidationLayer)
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+	for (auto& framebuffer : m_swapchainFramebuffers)
+		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
@@ -327,8 +330,8 @@ void VkApplication::CreateGraphicsPipeline()
 	VkViewport viewport{};
 	viewport.x = 0;
 	viewport.y = 0;
-	viewport.width = static_cast<float>(m_width);
-	viewport.height = static_cast<float>(m_height);
+	viewport.width = static_cast<float>(m_screenWidth);
+	viewport.height = static_cast<float>(m_screenHeight);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 0.0f;
 
@@ -425,6 +428,29 @@ void VkApplication::CreateGraphicsPipeline()
 
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(m_mainDevice.logicalDevice, fragShaderModule, nullptr);
+}
+
+void VkApplication::CreateFramebuffers()
+{
+	m_swapchainFramebuffers.resize(m_swapchainImages.size());
+
+	for (int i = 0; i < m_imageViews.size(); ++i)
+	{
+		VkImageView attachments[] = { m_imageViews[i] };
+
+		VkFramebufferCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		createInfo.renderPass = m_renderPass;
+		createInfo.attachmentCount = _countof(attachments);
+		createInfo.pAttachments = attachments;
+		createInfo.width = m_screenWidth;
+		createInfo.height = m_screenHeight;
+		createInfo.layers = 1;
+
+		if (vkCreateFramebuffer(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_swapchainFramebuffers[i]) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create framebuffer !\n");
+
+	}
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()

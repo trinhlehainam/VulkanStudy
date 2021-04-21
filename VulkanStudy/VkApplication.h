@@ -10,8 +10,8 @@ public:
 	explicit VkApplication(int width = 800, int height = 600, const char* window_title = "VkApplication");
 	void Run();
 private:
-	int m_width;
-	int m_height;
+	int m_screenWidth;
+	int m_screenHeight;
 	const char* m_title;
 private:
 	void InitWindow();
@@ -26,6 +26,7 @@ private:
 	void CreateImageViews();
 	void CreateRenderPass();
 	void CreateGraphicsPipeline();
+	void CreateFramebuffers();
 
 	void SetUpVkDebugMessengerEXT();
 
@@ -59,5 +60,6 @@ private:
 	VkRenderPass m_renderPass;
 	VkPipelineLayout m_pipelineLayout;
 	VkPipeline m_graphicsPipeline;
+	std::vector<VkFramebuffer> m_swapchainFramebuffers;
 };
 
