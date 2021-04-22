@@ -29,8 +29,12 @@ private:
 	void CreateFramebuffers();
 	void CreateCommandPool();
 	void AllocateCommandBuffers();
+	void CreateSemaphores();
 
 	void RecordCommands();
+
+	void RenderFrame();
+private:
 
 	void SetUpVkDebugMessengerEXT();
 
@@ -67,5 +71,7 @@ private:
 	std::vector<VkFramebuffer> m_swapchainFramebuffers;
 	VkCommandPool m_cmdPool;
 	std::vector<VkCommandBuffer> m_cmdBuffers;
+	VkSemaphore m_imageAvailableSemaphore;
+	VkSemaphore m_renderFinishedSemaphere;
 };
 

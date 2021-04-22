@@ -74,6 +74,8 @@ void VkApplication::CleanUp()
 		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
+	vkDestroySemaphore(m_mainDevice.logicalDevice, m_imageAvailableSemaphore, nullptr);
+	vkDestroySemaphore(m_mainDevice.logicalDevice, m_renderFinishedSemaphere, nullptr);
 	vkDestroyCommandPool(m_mainDevice.logicalDevice, m_cmdPool, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
@@ -484,6 +486,17 @@ void VkApplication::AllocateCommandBuffers()
 		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate command buffers!\n");
 }
 
+void VkApplication::CreateSemaphores()
+{
+	VkSemaphoreCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	if (vkCreateSemaphore(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageAvailableSemaphore) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERORR : Failed to create image available semaphore !\n");
+	if (vkCreateSemaphore(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_renderFinishedSemaphere) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERORR : Failed to create render finished semaphore !\n");
+}
+
 void VkApplication::RecordCommands()
 {
 	VkCommandBufferBeginInfo cmdBeginInfo{};
@@ -522,6 +535,29 @@ void VkApplication::RecordCommands()
 		if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS)
 			throw std::runtime_error("\nVULKAN ERROR : Failed to stop record commands !\n");
 	}
+}
+
+void VkApplication::RenderFrame()
+{
+	uint32_t image_idx = 0;
+	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &image_idx) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to acquire swap chain's image !\n");
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &m_cmdBuffers[image_idx];
+	VkPipelineStageFlags pipelineStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphore };
+	submitInfo.pWaitDstStageMask = pipelineStages;
+	submitInfo.waitSemaphoreCount = _countof(waitSemaphores);
+	submitInfo.pWaitSemaphores = waitSemaphores;
+	VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphere };
+	submitInfo.signalSemaphoreCount = _countof(signalSemaphores);
+	submitInfo.pSignalSemaphores = signalSemaphores;
+	
+	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to submit rendering to swap chain's image !\n");
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
