@@ -30,6 +30,8 @@ private:
 	void CreateCommandPool();
 	void AllocateCommandBuffers();
 
+	void RecordCommands();
+
 	void SetUpVkDebugMessengerEXT();
 
 	void PickVkPhysicalDevice();

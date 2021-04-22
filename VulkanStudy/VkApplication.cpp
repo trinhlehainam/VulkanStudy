@@ -55,6 +55,7 @@ void VkApplication::InitVulkan()
 	CreateFramebuffers();
 	CreateCommandPool();
 	AllocateCommandBuffers();
+	RecordCommands();
 }
 
 void VkApplication::MainLoop()
@@ -419,7 +420,7 @@ void VkApplication::CreateGraphicsPipeline()
 	graphicsCreateInfo.pRasterizationState = &rasterizerCreateInfo;
 	graphicsCreateInfo.pMultisampleState = &multisampleCreateInfo;
 	graphicsCreateInfo.pColorBlendState = &colorBlendCreateInfo;
-	graphicsCreateInfo.pDynamicState = &dynamicCreateInfo;
+	//graphicsCreateInfo.pDynamicState = &dynamicCreateInfo;
 	graphicsCreateInfo.renderPass = m_renderPass;
 	graphicsCreateInfo.subpass = 0;
 	graphicsCreateInfo.layout = m_pipelineLayout;
@@ -481,6 +482,46 @@ void VkApplication::AllocateCommandBuffers()
 
 	if (vkAllocateCommandBuffers(m_mainDevice.logicalDevice, &allocInfo, m_cmdBuffers.data()) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate command buffers!\n");
+}
+
+void VkApplication::RecordCommands()
+{
+	VkCommandBufferBeginInfo cmdBeginInfo{};
+	cmdBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	VkRenderPassBeginInfo renderBeginInfo{};
+	renderBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderBeginInfo.renderPass = m_renderPass;
+	renderBeginInfo.renderArea.offset = { 0,0 };
+	renderBeginInfo.renderArea.extent = m_swapchainExtent;
+	VkClearValue clearValues[] = 
+	{ {0.0f,0.0f,0.0f,1.0f} };
+	renderBeginInfo.clearValueCount = _countof(clearValues);
+	renderBeginInfo.pClearValues = clearValues;
+
+
+	for (int i = 0; i < m_swapchainFramebuffers.size(); ++i)
+	{
+		renderBeginInfo.framebuffer = m_swapchainFramebuffers[i];
+
+		auto& cmdBuffer = m_cmdBuffers[i];
+
+		if (vkBeginCommandBuffer(cmdBuffer, &cmdBeginInfo) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to start record commands !\n");
+
+#pragma region RECORD
+		vkCmdBeginRenderPass(cmdBuffer, &renderBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+		vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+
+		vkCmdEndRenderPass(cmdBuffer);
+#pragma endregion
+
+		if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to stop record commands !\n");
+	}
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
