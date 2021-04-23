@@ -66,14 +66,14 @@ void VkApplication::MainLoop()
 		glfwPollEvents();
 
 		RenderFrame();
-
-		vkDeviceWaitIdle(m_mainDevice.logicalDevice);
 	}
 
 }
 
 void VkApplication::CleanUp()
 {
+	vkDeviceWaitIdle(m_mainDevice.logicalDevice);
+
 	if (m_enableValidationLayer)
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 	for (auto& framebuffer : m_swapchainFramebuffers)
@@ -517,6 +517,7 @@ void VkApplication::RecordCommands()
 {
 	VkCommandBufferBeginInfo cmdBeginInfo{};
 	cmdBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	cmdBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
 	VkRenderPassBeginInfo renderBeginInfo{};
 	renderBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
