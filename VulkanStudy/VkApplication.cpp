@@ -12,8 +12,10 @@
 
 #include "VkUtils.h"
 
+const uint16_t MAX_FRAMES_IN_FLIGHT = 2;
+
 VkApplication::VkApplication(int width, int height, const char* window_title):
-	m_screenWidth(width),m_screenHeight(height),m_title(window_title)
+	m_screenWidth(width),m_screenHeight(height),m_title(window_title),m_currenFrame(0)
 {
 #ifdef _DEBUG || DEBUG
 	m_enableValidationLayer = true;
@@ -56,7 +58,7 @@ void VkApplication::InitVulkan()
 	CreateCommandPool();
 	AllocateCommandBuffers();
 	RecordCommands();
-	CreateSemaphores();
+	CreateSyncObjects();
 }
 
 void VkApplication::MainLoop()
@@ -80,8 +82,12 @@ void VkApplication::CleanUp()
 		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
 	for (auto& imageView : m_imageViews)
 		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
-	vkDestroySemaphore(m_mainDevice.logicalDevice, m_imageAvailableSemaphore, nullptr);
-	vkDestroySemaphore(m_mainDevice.logicalDevice, m_renderFinishedSemaphere, nullptr);
+	for (uint16_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+	{
+		vkDestroySemaphore(m_mainDevice.logicalDevice, m_imageAvailableSemaphores[i], nullptr);
+		vkDestroySemaphore(m_mainDevice.logicalDevice, m_renderFinishedSemapheres[i], nullptr);
+		vkDestroyFence(m_mainDevice.logicalDevice, m_inFlightFences[i], nullptr);
+	}
 	vkDestroyCommandPool(m_mainDevice.logicalDevice, m_cmdPool, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
@@ -502,15 +508,28 @@ void VkApplication::AllocateCommandBuffers()
 		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate command buffers!\n");
 }
 
-void VkApplication::CreateSemaphores()
+void VkApplication::CreateSyncObjects()
 {
-	VkSemaphoreCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	m_renderFinishedSemapheres.resize(MAX_FRAMES_IN_FLIGHT);
+	m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
-	if (vkCreateSemaphore(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageAvailableSemaphore) != VK_SUCCESS)
-		throw std::runtime_error("\nVULKAN ERORR : Failed to create image available semaphore !\n");
-	if (vkCreateSemaphore(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_renderFinishedSemaphere) != VK_SUCCESS)
-		throw std::runtime_error("\nVULKAN ERORR : Failed to create render finished semaphore !\n");
+	VkSemaphoreCreateInfo semaCreateInfo{};
+	semaCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	VkFenceCreateInfo fenceCreateInfo{};
+	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	for (uint16_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+	{
+		if (vkCreateSemaphore(m_mainDevice.logicalDevice, &semaCreateInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERORR : Failed to create image available semaphore !\n");
+		if (vkCreateSemaphore(m_mainDevice.logicalDevice, &semaCreateInfo, nullptr, &m_renderFinishedSemapheres[i]) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERORR : Failed to create render finished semaphore !\n");
+		if (vkCreateFence(m_mainDevice.logicalDevice, &fenceCreateInfo, nullptr, &m_inFlightFences[i]) != VK_SUCCESS)
+			throw std::runtime_error("\N VULKAN ERROR : Failed to create fences !\n");
+	}
 }
 
 void VkApplication::RecordCommands()
@@ -556,8 +575,11 @@ void VkApplication::RecordCommands()
 
 void VkApplication::RenderFrame()
 {
+	vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_inFlightFences[m_currenFrame], VK_TRUE, UINT64_MAX);
+	vkResetFences(m_mainDevice.logicalDevice, 1, &m_inFlightFences[m_currenFrame]);
+
 	uint32_t image_idx = 0;
-	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &image_idx) != VK_SUCCESS)
+	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphores[m_currenFrame], VK_NULL_HANDLE, &image_idx) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to acquire swap chain's image !\n");
 
 	VkSubmitInfo submitInfo{};
@@ -567,17 +589,19 @@ void VkApplication::RenderFrame()
 
 	VkPipelineStageFlags pipelineStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphore };
+	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currenFrame] };
 	submitInfo.pWaitDstStageMask = pipelineStages;
 	submitInfo.waitSemaphoreCount = _countof(waitSemaphores);
 	submitInfo.pWaitSemaphores = waitSemaphores;
 
-	VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphere };
+	VkSemaphore signalSemaphores[] = { m_renderFinishedSemapheres[m_currenFrame] };
 	submitInfo.signalSemaphoreCount = _countof(signalSemaphores);
 	submitInfo.pSignalSemaphores = signalSemaphores;
 	
-	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
+	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currenFrame]) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to submit rendering to swap chain's image !\n");
+
+	m_currenFrame = (m_currenFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
 	VkSwapchainKHR swapchains[] = { m_swapchain };
 

@@ -1,8 +1,11 @@
 #pragma once
 #include <vector>
+#include <array>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
+extern const uint16_t MAX_FRAMES_IN_FLIGHT;
 
 class VkApplication
 {
@@ -29,7 +32,7 @@ private:
 	void CreateFramebuffers();
 	void CreateCommandPool();
 	void AllocateCommandBuffers();
-	void CreateSemaphores();
+	void CreateSyncObjects();
 
 	void RecordCommands();
 
@@ -71,7 +74,9 @@ private:
 	std::vector<VkFramebuffer> m_swapchainFramebuffers;
 	VkCommandPool m_cmdPool;
 	std::vector<VkCommandBuffer> m_cmdBuffers;
-	VkSemaphore m_imageAvailableSemaphore;
-	VkSemaphore m_renderFinishedSemaphere;
+	std::vector<VkSemaphore> m_imageAvailableSemaphores;
+	std::vector<VkSemaphore> m_renderFinishedSemapheres;
+	std::vector<VkFence> m_inFlightFences;
+	uint16_t m_currenFrame;
 };
 
