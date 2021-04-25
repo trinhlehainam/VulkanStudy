@@ -513,6 +513,7 @@ void VkApplication::CreateSyncObjects()
 	m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	m_renderFinishedSemapheres.resize(MAX_FRAMES_IN_FLIGHT);
 	m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+	m_imagesInFlight.resize(m_swapchainFramebuffers.size(), VK_NULL_HANDLE);
 
 	VkSemaphoreCreateInfo semaCreateInfo{};
 	semaCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -536,7 +537,6 @@ void VkApplication::RecordCommands()
 {
 	VkCommandBufferBeginInfo cmdBeginInfo{};
 	cmdBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	cmdBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
 	VkRenderPassBeginInfo renderBeginInfo{};
 	renderBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -547,7 +547,6 @@ void VkApplication::RecordCommands()
 	{ {0.0f,0.0f,0.0f,1.0f} };
 	renderBeginInfo.clearValueCount = _countof(clearValues);
 	renderBeginInfo.pClearValues = clearValues;
-
 
 	for (int i = 0; i < m_swapchainFramebuffers.size(); ++i)
 	{
@@ -575,13 +574,19 @@ void VkApplication::RecordCommands()
 
 void VkApplication::RenderFrame()
 {
-	vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_inFlightFences[m_currenFrame], VK_TRUE, UINT64_MAX);
-	vkResetFences(m_mainDevice.logicalDevice, 1, &m_inFlightFences[m_currenFrame]);
 
 	uint32_t image_idx = 0;
 	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphores[m_currenFrame], VK_NULL_HANDLE, &image_idx) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to acquire swap chain's image !\n");
 
+	m_imagesInFlight[image_idx] = m_inFlightFences[m_currenFrame];
+
+	if (m_imagesInFlight[image_idx] != VK_NULL_HANDLE)
+	{
+		vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx], VK_TRUE, UINT64_MAX);
+		vkResetFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx]);
+	}
+		
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
@@ -598,10 +603,8 @@ void VkApplication::RenderFrame()
 	submitInfo.signalSemaphoreCount = _countof(signalSemaphores);
 	submitInfo.pSignalSemaphores = signalSemaphores;
 	
-	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currenFrame]) != VK_SUCCESS)
+	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_imagesInFlight[image_idx]) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to submit rendering to swap chain's image !\n");
-
-	m_currenFrame = (m_currenFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
 	VkSwapchainKHR swapchains[] = { m_swapchain };
 
@@ -615,6 +618,8 @@ void VkApplication::RenderFrame()
 
 	if (vkQueuePresentKHR(m_presentationQueue, &presentInfo) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Falied to submit present info to queue !\n");
+
+	m_currenFrame = (m_currenFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()
