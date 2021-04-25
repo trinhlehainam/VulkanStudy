@@ -77,6 +77,7 @@ private:
 	std::vector<VkSemaphore> m_imageAvailableSemaphores;
 	std::vector<VkSemaphore> m_renderFinishedSemapheres;
 	std::vector<VkFence> m_inFlightFences;
+	std::vector<VkFence> m_imagesInFlight;
 	uint16_t m_currenFrame;
 };
 
