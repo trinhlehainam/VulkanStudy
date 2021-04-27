@@ -2,6 +2,8 @@
 #include <vector>
 
 #include <vulkan/vulkan.h>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
 namespace VkUtils
 {
@@ -24,6 +26,15 @@ namespace VkUtils
 		VkSurfaceCapabilitiesKHR Capabilities;
 		std::vector<VkSurfaceFormatKHR> Formats;
 		std::vector<VkPresentModeKHR> PresentModes;
+	};
+
+	struct Vertex
+	{
+		glm::vec3 Pos;
+		glm::vec3 Color;
+
+		static VkVertexInputBindingDescription GetBindingDescription();
+		static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions();
 	};
 }
 
