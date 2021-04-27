@@ -581,11 +581,8 @@ void VkApplication::RenderFrame()
 
 	m_imagesInFlight[image_idx] = m_inFlightFences[m_currenFrame];
 
-	if (m_imagesInFlight[image_idx] != VK_NULL_HANDLE)
-	{
-		vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx], VK_TRUE, UINT64_MAX);
-		vkResetFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx]);
-	}
+	vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx], VK_TRUE, UINT64_MAX);
+	vkResetFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx]);
 		
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
