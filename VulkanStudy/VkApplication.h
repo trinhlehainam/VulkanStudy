@@ -31,6 +31,7 @@ private:
 	void CreateGraphicsPipeline();
 	void CreateFramebuffers();
 	void CreateCommandPool();
+	void CreateVertexBuffer();
 	void AllocateCommandBuffers();
 	void CreateSyncObjects();
 
@@ -79,5 +80,8 @@ private:
 	std::vector<VkFence> m_inFlightFences;
 	std::vector<VkFence> m_imagesInFlight;
 	uint16_t m_currenFrame;
+
+	VkBuffer m_vertexBuffer;
+	VkDeviceMemory m_vertexBufferMemory;
 };
 

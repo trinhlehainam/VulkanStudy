@@ -315,4 +315,35 @@ namespace VkUtils
 
 		return shaderModule;
 	}
+
+	VkBuffer CreateVertexBuffer(VkDevice device, uint64_t vertexSize)
+	{
+		VkBuffer buffer = VK_NULL_HANDLE;
+
+		VkBufferCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		createInfo.size = vertexSize;
+		createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		vkCreateBuffer(device, &createInfo, nullptr, &buffer);
+
+		return buffer;
+	}
+
+	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties)
+	{
+		VkPhysicalDeviceMemoryProperties memProps{};
+		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
+
+		for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i)
+		{
+			if ((allowedType & (1 << i)) && 
+				((memProps.memoryTypes[i].propertyFlags & properties) == properties)
+				)
+				return i;
+		}
+
+		return UINT32_MAX;
+	}
 }

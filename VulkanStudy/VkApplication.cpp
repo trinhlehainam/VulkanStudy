@@ -12,7 +12,17 @@
 
 #include "VkUtils.h"
 
+namespace
+{
+	const std::vector<VkUtils::Vertex> g_vertices = {
+	{{0.0f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}},
+	{{0.5f, 0.5f,0.0f}, {0.0f, 1.0f, 0.0f}},
+	{{-0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}}
+	};
+}
+
 const uint16_t MAX_FRAMES_IN_FLIGHT = 2;
+
 
 VkApplication::VkApplication(int width, int height, const char* window_title):
 	m_screenWidth(width),m_screenHeight(height),m_title(window_title),m_currenFrame(0)
@@ -56,6 +66,7 @@ void VkApplication::InitVulkan()
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandPool();
+	CreateVertexBuffer();
 	AllocateCommandBuffers();
 	RecordCommands();
 	CreateSyncObjects();
@@ -78,22 +89,33 @@ void VkApplication::CleanUp()
 
 	if (m_enableValidationLayer)
 		VkUtils::DestroyVkDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
-	for (auto& framebuffer : m_swapchainFramebuffers)
-		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
-	for (auto& imageView : m_imageViews)
-		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
+	
+	// Synchronisation objects
 	for (uint16_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 	{
 		vkDestroySemaphore(m_mainDevice.logicalDevice, m_imageAvailableSemaphores[i], nullptr);
 		vkDestroySemaphore(m_mainDevice.logicalDevice, m_renderFinishedSemapheres[i], nullptr);
 		vkDestroyFence(m_mainDevice.logicalDevice, m_inFlightFences[i], nullptr);
 	}
+
+	// Buffers and memories
+	vkDestroyBuffer(m_mainDevice.logicalDevice, m_vertexBuffer, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, nullptr);
+
+	// Pipeline objects
+	for (auto& framebuffer : m_swapchainFramebuffers)
+		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
 	vkDestroyCommandPool(m_mainDevice.logicalDevice, m_cmdPool, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
 	vkDestroyRenderPass(m_mainDevice.logicalDevice, m_renderPass, nullptr);
+
+	// Presentation objects
+	for (auto& imageView : m_imageViews)
+		vkDestroyImageView(m_mainDevice.logicalDevice, imageView, nullptr);
 	vkDestroySwapchainKHR(m_mainDevice.logicalDevice, m_swapchain, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+
 	vkDestroyDevice(m_mainDevice.logicalDevice, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
 
@@ -497,6 +519,38 @@ void VkApplication::CreateCommandPool()
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create command pool !\n");
 }
 
+void VkApplication::CreateVertexBuffer()
+{
+	auto bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
+	m_vertexBuffer = VkUtils::CreateVertexBuffer(m_mainDevice.logicalDevice, bufferSize);
+	if (m_vertexBuffer == VK_NULL_HANDLE)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create vertex buffer !\n");
+
+	VkMemoryRequirements memRequire{};
+	vkGetBufferMemoryRequirements(m_mainDevice.logicalDevice, m_vertexBuffer, &memRequire);
+
+	auto suitableMemType = VkUtils::FindMemoryType(m_mainDevice.physicalDevice, memRequire.memoryTypeBits, 
+								VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	if (suitableMemType == UINT32_MAX)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to find suitable memory type for VERTEX BUFFER !\n");
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequire.size;
+	allocInfo.memoryTypeIndex = suitableMemType;
+
+	if (vkAllocateMemory(m_mainDevice.logicalDevice, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate memory !\n");
+
+	if (vkBindBufferMemory(m_mainDevice.logicalDevice, m_vertexBuffer, m_vertexBufferMemory, 0) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to bind VERTEX BUFFER and DEVICE MEMORY !\n");
+
+	void* data = nullptr;
+	vkMapMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, g_vertices.data(), bufferSize);
+	vkUnmapMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory);
+}
+
 void VkApplication::AllocateCommandBuffers()
 {
 	m_cmdBuffers.resize(m_swapchainFramebuffers.size());
@@ -532,7 +586,7 @@ void VkApplication::CreateSyncObjects()
 		if (vkCreateSemaphore(m_mainDevice.logicalDevice, &semaCreateInfo, nullptr, &m_renderFinishedSemapheres[i]) != VK_SUCCESS)
 			throw std::runtime_error("\nVULKAN ERORR : Failed to create render finished semaphore !\n");
 		if (vkCreateFence(m_mainDevice.logicalDevice, &fenceCreateInfo, nullptr, &m_inFlightFences[i]) != VK_SUCCESS)
-			throw std::runtime_error("\N VULKAN ERROR : Failed to create fences !\n");
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create fences !\n");
 	}
 }
 
@@ -546,6 +600,7 @@ void VkApplication::RecordCommands()
 	renderBeginInfo.renderPass = m_renderPass;
 	renderBeginInfo.renderArea.offset = { 0,0 };
 	renderBeginInfo.renderArea.extent = m_swapchainExtent;
+
 	VkClearValue clearValues[] = 
 	{ {0.0f,0.0f,0.0f,1.0f} };
 	renderBeginInfo.clearValueCount = _countof(clearValues);
@@ -554,21 +609,19 @@ void VkApplication::RecordCommands()
 	for (int i = 0; i < m_swapchainFramebuffers.size(); ++i)
 	{
 		renderBeginInfo.framebuffer = m_swapchainFramebuffers[i];
-
 		auto& cmdBuffer = m_cmdBuffers[i];
 
 		if (vkBeginCommandBuffer(cmdBuffer, &cmdBeginInfo) != VK_SUCCESS)
 			throw std::runtime_error("\nVULKAN ERROR : Failed to start record commands !\n");
 
-#pragma region RECORD
+		// Record
 		vkCmdBeginRenderPass(cmdBuffer, &renderBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
 		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-
-		vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
-
+		VkBuffer buffers[] = { m_vertexBuffer };
+		VkDeviceSize deviceSizes[] = { 0 };
+		vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, deviceSizes);
+		vkCmdDraw(cmdBuffer, static_cast<uint32_t>(g_vertices.size()), 1, 0, 0);
 		vkCmdEndRenderPass(cmdBuffer);
-#pragma endregion
 
 		if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS)
 			throw std::runtime_error("\nVULKAN ERROR : Failed to stop record commands !\n");
@@ -577,7 +630,6 @@ void VkApplication::RecordCommands()
 
 void VkApplication::RenderFrame()
 {
-
 	uint32_t image_idx = 0;
 	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphores[m_currenFrame], VK_NULL_HANDLE, &image_idx) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to acquire swap chain's image !\n");

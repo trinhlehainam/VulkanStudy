@@ -65,5 +65,11 @@ namespace VkUtils
 
 	// spvFileName : compiled shader file to use with vulkan
 	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const char* spvFileName);
+
+	// If function fails to create vertex buffer, it returns VK_NULL_HANDLE
+	VkBuffer CreateVertexBuffer(VkDevice device, uint64_t vertexSize);
+
+	// If function doesn't find any suitable memory type, it returns UINT32_MAX
+	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
 }
 
