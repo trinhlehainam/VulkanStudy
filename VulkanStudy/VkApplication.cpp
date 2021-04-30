@@ -15,9 +15,9 @@
 namespace
 {
 	const std::vector<VkUtils::Vertex> g_vertices = {
-	{{0.0f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}},
-	{{0.5f, 0.5f,0.0f}, {0.0f, 1.0f, 0.0f}},
-	{{-0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}}
+	{{0.0f, -0.5f,0.0f}, {1.0f, 0.0f, 1.0f}},
+	{{0.5f, 0.5f,0.0f}, {1.0f, 0.0f, 1.0f}},
+	{{-0.5f, 0.5f,0.0f}, {1.0f, 0.0f, 1.0f}}
 	};
 }
 
@@ -522,7 +522,7 @@ void VkApplication::CreateCommandPool()
 void VkApplication::CreateVertexBuffer()
 {
 	auto bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
-	m_vertexBuffer = VkUtils::CreateVertexBuffer(m_mainDevice.logicalDevice, bufferSize);
+	m_vertexBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 	if (m_vertexBuffer == VK_NULL_HANDLE)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create vertex buffer !\n");
 

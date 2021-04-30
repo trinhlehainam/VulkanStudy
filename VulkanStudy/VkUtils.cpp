@@ -316,19 +316,44 @@ namespace VkUtils
 		return shaderModule;
 	}
 
-	VkBuffer CreateVertexBuffer(VkDevice device, uint64_t vertexSize)
+	VkBuffer CreateBuffer(VkDevice device, uint64_t vertexSize, VkBufferUsageFlags usageFlags)
 	{
 		VkBuffer buffer = VK_NULL_HANDLE;
 
 		VkBufferCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		createInfo.size = vertexSize;
-		createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		createInfo.usage = usageFlags;
 		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 		vkCreateBuffer(device, &createInfo, nullptr, &buffer);
 
 		return buffer;
+	}
+
+	VkDeviceMemory CreateDeviceMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps)
+	{
+		VkDeviceMemory mem = VK_NULL_HANDLE;
+
+		VkMemoryRequirements memRequire{};
+		vkGetBufferMemoryRequirements(device, buffer, &memRequire);
+
+		auto suitableMemType = VkUtils::FindMemoryType(physDevice, memRequire.memoryTypeBits, memProps);
+		if (suitableMemType == UINT32_MAX)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to find suitable memory type for VERTEX BUFFER !\n");
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequire.size;
+		allocInfo.memoryTypeIndex = suitableMemType;
+
+		if (vkAllocateMemory(device, &allocInfo, nullptr, &mem) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to allocate memory !\n");
+
+		if (vkBindBufferMemory(device, buffer, mem, 0) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to bind VERTEX BUFFER and DEVICE MEMORY !\n");
+
+		return mem;
 	}
 
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties)
