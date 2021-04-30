@@ -15,10 +15,10 @@ namespace VkUtils
 {
 	struct QueueFamilyIndices
 	{
-		int graphicsFamily = -1;
-		int presentationFamily = -1;
+		uint32_t graphicsFamilyIndex = UINT32_MAX;
+		uint32_t presentationFamilyIndex = UINT32_MAX;
 
-		bool IsValid(){ return graphicsFamily >= 0 && presentationFamily >= 0; }
+		bool IsValid(){ return graphicsFamilyIndex != UINT32_MAX && presentationFamilyIndex != UINT32_MAX; }
 	};
 
 	struct SwapChainDetails
@@ -69,10 +69,12 @@ namespace VkUtils
 	// If function fails to create vertex buffer, it returns VK_NULL_HANDLE
 	VkBuffer CreateBuffer(VkDevice device, uint64_t vertexSize, VkBufferUsageFlags usageFlags);
 
-	// iF it failed to create VkDeviceMemory , it returns VK_NULL_HANDLE
-	VkDeviceMemory CreateDeviceMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps);
+	// If it failed to create VkDeviceMemory , it returns VK_NULL_HANDLE
+	VkDeviceMemory AllocateBufferMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps);
 
 	// If function doesn't find any suitable memory type, it returns UINT32_MAX
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
+
+	void CopyBuffer(VkDevice device, VkQueue queue, VkCommandPool cmdPool, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
 }
 

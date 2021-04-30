@@ -174,7 +174,7 @@ void VkApplication::CreateLogicalDevice()
 	// Use std::set to check if presentation queue is inside graphics queue or in the seperate queue
 	// If presentation queue is inside graphics queue -> only create one queue
 	// Else create the seperate queue for presentation queue
-	std::set<int> queueFamilyIndices = { indices.graphicsFamily, indices.presentationFamily };
+	std::set<uint32_t> queueFamilyIndices = { indices.graphicsFamilyIndex, indices.presentationFamilyIndex };
 
 	std::vector <VkDeviceQueueCreateInfo> queueCreateInfos;
 	queueCreateInfos.reserve(queueFamilyIndices.size());
@@ -206,8 +206,8 @@ void VkApplication::CreateLogicalDevice()
 		throw std::runtime_error("\nVULKAN INIT ERROR : Failed to create logical devices !\n");
 
 	// Get Queue that created inside logical device to use later
-	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.graphicsFamily, 0, &m_graphicsQueue);
-	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.presentationFamily, 0, &m_presentationQueue);
+	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.graphicsFamilyIndex, 0, &m_graphicsQueue);
+	vkGetDeviceQueue(m_mainDevice.logicalDevice, indices.presentationFamilyIndex, 0, &m_presentationQueue);
 }
 
 void VkApplication::CreateSurface()
@@ -242,9 +242,9 @@ void VkApplication::CreateSwapchain()
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	auto indices = VkUtils::GetQueueFamiilyIndices(m_mainDevice.physicalDevice, m_surface);
-	uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentationFamily };
+	uint32_t queueFamilyIndices[] = { indices.graphicsFamilyIndex, indices.presentationFamilyIndex };
 
-	if (indices.graphicsFamily != indices.presentationFamily)
+	if (indices.graphicsFamilyIndex != indices.presentationFamilyIndex)
 	{
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		createInfo.queueFamilyIndexCount = 2;
@@ -513,7 +513,7 @@ void VkApplication::CreateCommandPool()
 
 	VkCommandPoolCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	createInfo.queueFamilyIndex = indices.graphicsFamily;
+	createInfo.queueFamilyIndex = indices.graphicsFamilyIndex;
 
 	if (vkCreateCommandPool(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_cmdPool) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create command pool !\n");
@@ -521,34 +521,33 @@ void VkApplication::CreateCommandPool()
 
 void VkApplication::CreateVertexBuffer()
 {
+	// Create vertex buffer and allocate memory
 	auto bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
-	m_vertexBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	m_vertexBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, 
+						VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 	if (m_vertexBuffer == VK_NULL_HANDLE)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create vertex buffer !\n");
+	m_vertexBufferMemory = VkUtils::AllocateBufferMemory(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_vertexBuffer,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	VkMemoryRequirements memRequire{};
-	vkGetBufferMemoryRequirements(m_mainDevice.logicalDevice, m_vertexBuffer, &memRequire);
+	// Create transfer buffer and allocate memory (to upload data to GPU's buffer)
+	VkBuffer transferBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	if (transferBuffer == VK_NULL_HANDLE)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create transfer buffer !\n");
+	VkDeviceMemory transferMemory = VkUtils::AllocateBufferMemory(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, transferBuffer,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	auto suitableMemType = VkUtils::FindMemoryType(m_mainDevice.physicalDevice, memRequire.memoryTypeBits, 
-								VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	if (suitableMemType == UINT32_MAX)
-		throw std::runtime_error("\nVULKAN ERROR : Failed to find suitable memory type for VERTEX BUFFER !\n");
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequire.size;
-	allocInfo.memoryTypeIndex = suitableMemType;
-
-	if (vkAllocateMemory(m_mainDevice.logicalDevice, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS)
-		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate memory !\n");
-
-	if (vkBindBufferMemory(m_mainDevice.logicalDevice, m_vertexBuffer, m_vertexBufferMemory, 0) != VK_SUCCESS)
-		throw std::runtime_error("\nVULKAN ERROR : Failed to bind VERTEX BUFFER and DEVICE MEMORY !\n");
-
+	// Map data to transfer buffer
 	void* data = nullptr;
-	vkMapMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, 0, bufferSize, 0, &data);
+	vkMapMemory(m_mainDevice.logicalDevice, transferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, g_vertices.data(), bufferSize);
-	vkUnmapMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory);
+	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
+
+	VkUtils::CopyBuffer(m_mainDevice.logicalDevice, m_graphicsQueue, m_cmdPool, transferBuffer, m_vertexBuffer, bufferSize);
+
+	// Release transfer resources
+	vkDestroyBuffer(m_mainDevice.logicalDevice, transferBuffer, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, transferMemory, nullptr);
 }
 
 void VkApplication::AllocateCommandBuffers()

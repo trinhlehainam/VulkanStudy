@@ -232,13 +232,13 @@ namespace VkUtils
 		for (const auto& queueFamily : queueFamilies)
 		{
 			if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-				indices.graphicsFamily = index;
+				indices.graphicsFamilyIndex = index;
 
 			VkBool32 presentationSupported = false;
 			vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &presentationSupported);
 
 			if (queueFamily.queueCount > 0 && presentationSupported)
-				indices.presentationFamily = index;
+				indices.presentationFamilyIndex = index;
 
 			if (indices.IsValid())
 				break;
@@ -331,7 +331,7 @@ namespace VkUtils
 		return buffer;
 	}
 
-	VkDeviceMemory CreateDeviceMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps)
+	VkDeviceMemory AllocateBufferMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps)
 	{
 		VkDeviceMemory mem = VK_NULL_HANDLE;
 
@@ -370,5 +370,38 @@ namespace VkUtils
 		}
 
 		return UINT32_MAX;
+	}
+
+	void CopyBuffer(VkDevice device, VkQueue queue, VkCommandPool cmdPool, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize)
+	{
+		// Allocate temporary command buffer
+		VkCommandBufferAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = cmdPool;
+		allocInfo.commandBufferCount = 1;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		VkCommandBuffer cmdBuffer;
+		vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer);
+
+		// Record commands
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+		VkBufferCopy bufferCopy{};
+		bufferCopy.size = bufferSize;
+		bufferCopy.dstOffset = 0;
+		bufferCopy.srcOffset = 0;
+		vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
+		vkEndCommandBuffer(cmdBuffer);
+
+		// Submit commands to queue and wait until queue finishing commands
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &cmdBuffer;
+		vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(queue);
+
 	}
 }
