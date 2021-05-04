@@ -67,7 +67,7 @@ namespace VkUtils
 	VkShaderModule CreateShaderModule(VkDevice device, const VkAllocationCallbacks* pAllocator, const char* spvFileName);
 
 	// If function fails to create vertex buffer, it returns VK_NULL_HANDLE
-	VkBuffer CreateBuffer(VkDevice device, uint64_t vertexSize, VkBufferUsageFlags usageFlags);
+	VkBuffer CreateBuffer(VkDevice device, uint64_t bufferSize, VkBufferUsageFlags usageFlags);
 
 	// If it failed to create VkDeviceMemory , it returns VK_NULL_HANDLE
 	VkDeviceMemory AllocateBufferMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps);

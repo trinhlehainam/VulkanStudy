@@ -15,10 +15,13 @@
 namespace
 {
 	const std::vector<VkUtils::Vertex> g_vertices = {
-	{{0.0f, -0.5f,0.0f}, {1.0f, 0.0f, 1.0f}},
-	{{0.5f, 0.5f,0.0f}, {1.0f, 0.0f, 1.0f}},
-	{{-0.5f, 0.5f,0.0f}, {1.0f, 0.0f, 1.0f}}
+	{{-0.5f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}},
+	{{0.5f, -0.5f,0.0f}, {0.0f, 1.0f, 0.0f}},
+	{{0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}},
+	{{-0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}}
 	};
+
+	const std::vector<uint32_t> g_indices = { 0,1,2,0,2,3 };
 }
 
 const uint16_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -67,6 +70,7 @@ void VkApplication::InitVulkan()
 	CreateFramebuffers();
 	CreateCommandPool();
 	CreateVertexBuffer();
+	CreateIndexBuffer();
 	AllocateCommandBuffers();
 	RecordCommands();
 	CreateSyncObjects();
@@ -77,10 +81,8 @@ void VkApplication::MainLoop()
 	while (!glfwWindowShouldClose(m_window))
 	{
 		glfwPollEvents();
-
 		RenderFrame();
 	}
-
 }
 
 void VkApplication::CleanUp()
@@ -100,7 +102,10 @@ void VkApplication::CleanUp()
 
 	// Buffers and memories
 	vkDestroyBuffer(m_mainDevice.logicalDevice, m_vertexBuffer, nullptr);
+	vkDestroyBuffer(m_mainDevice.logicalDevice, m_indexBuffer, nullptr);
+
 	vkFreeMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, m_indexBufferMemory, nullptr);
 
 	// Pipeline objects
 	for (auto& framebuffer : m_swapchainFramebuffers)
@@ -503,7 +508,6 @@ void VkApplication::CreateFramebuffers()
 
 		if (vkCreateFramebuffer(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_swapchainFramebuffers[i]) != VK_SUCCESS)
 			throw std::runtime_error("\nVULKAN ERROR : Failed to create framebuffer !\n");
-
 	}
 }
 
@@ -546,6 +550,31 @@ void VkApplication::CreateVertexBuffer()
 	VkUtils::CopyBuffer(m_mainDevice.logicalDevice, m_graphicsQueue, m_cmdPool, transferBuffer, m_vertexBuffer, bufferSize);
 
 	// Release transfer resources
+	vkDestroyBuffer(m_mainDevice.logicalDevice, transferBuffer, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, transferMemory, nullptr);
+}
+
+void VkApplication::CreateIndexBuffer()
+{
+	VkDeviceSize bufferSize = sizeof(g_indices[0]) * g_indices.size();
+	m_indexBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	if (m_indexBuffer == VK_NULL_HANDLE)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create index buffer !\n");
+	m_indexBufferMemory = VkUtils::AllocateBufferMemory(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_indexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	auto transferBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	if (transferBuffer == VK_NULL_HANDLE)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create staging buffer to transfer resources to INDEX buffer !\n");
+	auto transferMemory = VkUtils::AllocateBufferMemory(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, transferBuffer, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	void* data = nullptr;
+	vkMapMemory(m_mainDevice.logicalDevice, transferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, g_indices.data(), bufferSize);
+	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
+
+	VkUtils::CopyBuffer(m_mainDevice.logicalDevice, m_graphicsQueue, m_cmdPool, transferBuffer, m_indexBuffer, bufferSize);
+
 	vkDestroyBuffer(m_mainDevice.logicalDevice, transferBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, transferMemory, nullptr);
 }
@@ -619,7 +648,8 @@ void VkApplication::RecordCommands()
 		VkBuffer buffers[] = { m_vertexBuffer };
 		VkDeviceSize deviceSizes[] = { 0 };
 		vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, deviceSizes);
-		vkCmdDraw(cmdBuffer, static_cast<uint32_t>(g_vertices.size()), 1, 0, 0);
+		vkCmdBindIndexBuffer(cmdBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(cmdBuffer, static_cast<uint32_t>(g_indices.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(cmdBuffer);
 
 		if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS)

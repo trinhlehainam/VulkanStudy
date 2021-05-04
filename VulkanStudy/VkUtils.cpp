@@ -316,13 +316,13 @@ namespace VkUtils
 		return shaderModule;
 	}
 
-	VkBuffer CreateBuffer(VkDevice device, uint64_t vertexSize, VkBufferUsageFlags usageFlags)
+	VkBuffer CreateBuffer(VkDevice device, uint64_t bufferSize, VkBufferUsageFlags usageFlags)
 	{
 		VkBuffer buffer = VK_NULL_HANDLE;
 
 		VkBufferCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		createInfo.size = vertexSize;
+		createInfo.size = bufferSize;
 		createInfo.usage = usageFlags;
 		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
