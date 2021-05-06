@@ -18,10 +18,10 @@ namespace
 	{{-0.5f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}},
 	{{0.5f, -0.5f,0.0f}, {0.0f, 1.0f, 0.0f}},
 	{{0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}},
-	{{-0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}}
+	{{-0.5f, 0.5f,0.0f}, {1.0f, 1.0f, 1.0f}}
 	};
 
-	const std::vector<uint32_t> g_indices = { 0,1,2,0,2,3 };
+	const std::vector<uint32_t> g_indices = { 0,1,2,2,3,0 };
 }
 
 const uint16_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -63,14 +63,19 @@ void VkApplication::InitVulkan()
 	CreateSurface();
 	PickVkPhysicalDevice();
 	CreateLogicalDevice();
+
 	CreateSwapchain();
 	CreateImageViews();
+
 	CreateRenderPass();
+	CreateDescriptorSetLayout();
 	CreateGraphicsPipeline();
+
 	CreateFramebuffers();
 	CreateCommandPool();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
+	CreateUniformBuffer();
 	AllocateCommandBuffers();
 	RecordCommands();
 	CreateSyncObjects();
@@ -103,15 +108,20 @@ void VkApplication::CleanUp()
 	// Buffers and memories
 	vkDestroyBuffer(m_mainDevice.logicalDevice, m_vertexBuffer, nullptr);
 	vkDestroyBuffer(m_mainDevice.logicalDevice, m_indexBuffer, nullptr);
+	for (auto& buffer : m_uniformBuffers)
+		vkDestroyBuffer(m_mainDevice.logicalDevice, buffer, nullptr);
 
 	vkFreeMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, m_indexBufferMemory, nullptr);
-
+	for (auto& memory : m_uniformBufferMemorys)
+		vkFreeMemory(m_mainDevice.logicalDevice, memory, nullptr);
+	
 	// Pipeline objects
 	for (auto& framebuffer : m_swapchainFramebuffers)
 		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
 	vkDestroyCommandPool(m_mainDevice.logicalDevice, m_cmdPool, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
+	vkDestroyDescriptorSetLayout(m_mainDevice.logicalDevice, m_descriptorSetLayout, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
 	vkDestroyRenderPass(m_mainDevice.logicalDevice, m_renderPass, nullptr);
 
@@ -352,6 +362,24 @@ void VkApplication::CreateRenderPass()
 
 }
 
+void VkApplication::CreateDescriptorSetLayout()
+{
+	VkDescriptorSetLayoutBinding binding{};
+	binding.binding = 0;
+	binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	binding.descriptorCount = 1;
+	binding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	createInfo.bindingCount = 1;
+	createInfo.pBindings = &binding;
+
+	if (vkCreateDescriptorSetLayout(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create Descriptor Set Layout !\n");
+}
+
 void VkApplication::CreateGraphicsPipeline()
 {
 	VkShaderModule vertShaderModule = VkUtils::CreateShaderModule(m_mainDevice.logicalDevice, nullptr, "assets/shaders/vert.spv");
@@ -456,8 +484,8 @@ void VkApplication::CreateGraphicsPipeline()
 
 	VkPipelineLayoutCreateInfo layoutCreateInfo{};
 	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layoutCreateInfo.setLayoutCount = 0;
-	layoutCreateInfo.pSetLayouts = nullptr;
+	layoutCreateInfo.setLayoutCount = 1;
+	layoutCreateInfo.pSetLayouts = &m_descriptorSetLayout;
 	layoutCreateInfo.pushConstantRangeCount = 0;
 	layoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -579,6 +607,28 @@ void VkApplication::CreateIndexBuffer()
 	vkFreeMemory(m_mainDevice.logicalDevice, transferMemory, nullptr);
 }
 
+void VkApplication::CreateUniformBuffer()
+{
+	VkDeviceSize bufferSize = sizeof(VkUtils::UniformBufferObject);
+	auto imageCount = m_swapchainImages.size();
+
+	m_uniformBuffers.resize(imageCount);
+	m_uniformBufferMemorys.resize(imageCount);
+
+	for (uint16_t i = 0; i < imageCount; ++i)
+	{
+		auto& buffer = m_uniformBuffers[i];
+		auto& memory = m_uniformBufferMemorys[i];
+
+		buffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+		if (buffer == VK_NULL_HANDLE)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create Uniform Buffer !\n");
+
+		memory = VkUtils::AllocateBufferMemory(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, buffer,
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+	}
+}
+
 void VkApplication::AllocateCommandBuffers()
 {
 	m_cmdBuffers.resize(m_swapchainFramebuffers.size());
@@ -684,6 +734,8 @@ void VkApplication::RenderFrame()
 	submitInfo.signalSemaphoreCount = _countof(signalSemaphores);
 	submitInfo.pSignalSemaphores = signalSemaphores;
 	
+	UpdateUniformBuffer(image_idx);
+
 	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_imagesInFlight[image_idx]) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to submit rendering to swap chain's image !\n");
 
@@ -701,6 +753,27 @@ void VkApplication::RenderFrame()
 		throw std::runtime_error("\nVULKAN ERROR : Falied to submit present info to queue !\n");
 
 	m_currenFrame = (m_currenFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void VkApplication::UpdateUniformBuffer(uint16_t imageIndex)
+{
+	VkDeviceSize bufferSize = sizeof(VkUtils::UniformBufferObject);
+	auto& memory = m_uniformBufferMemorys[imageIndex];
+
+	static auto s_startTime = std::chrono::high_resolution_clock::now();
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - s_startTime).count();
+
+	VkUtils::UniformBufferObject ubo{};
+	ubo.Model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.View = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.Proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_screenWidth) / m_screenHeight, 0.1f, 10.0f);
+	ubo.Proj[1][1] *= -1;
+
+	void* data = nullptr;
+	vkMapMemory(m_mainDevice.logicalDevice, memory, 0, bufferSize, 0, &data);
+	memcpy(data, &ubo, bufferSize);
+	vkUnmapMemory(m_mainDevice.logicalDevice, memory);
 }
 
 void VkApplication::SetUpVkDebugMessengerEXT()

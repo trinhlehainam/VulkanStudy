@@ -1,9 +1,12 @@
 #pragma once
 #include <vector>
+#include <chrono>
 
 #include <vulkan/vulkan.h>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
+
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace VkUtils
 {
@@ -35,6 +38,13 @@ namespace VkUtils
 
 		static VkVertexInputBindingDescription GetBindingDescription();
 		static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions();
+	};
+
+	struct UniformBufferObject
+	{
+		glm::mat4 Model;
+		glm::mat4 View;
+		glm::mat4 Proj;
 	};
 }
 

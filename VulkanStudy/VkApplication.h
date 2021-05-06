@@ -28,17 +28,21 @@ private:
 	void CreateSwapchain();
 	void CreateImageViews();
 	void CreateRenderPass();
+	void CreateDescriptorSetLayout();
 	void CreateGraphicsPipeline();
 	void CreateFramebuffers();
 	void CreateCommandPool();
 	void CreateVertexBuffer();
 	void CreateIndexBuffer();
+	void CreateUniformBuffer();
 	void AllocateCommandBuffers();
 	void CreateSyncObjects();
-
+	
 	void RecordCommands();
 
 	void RenderFrame();
+
+	void UpdateUniformBuffer(uint16_t imageIndex);
 private:
 
 	void SetUpVkDebugMessengerEXT();
@@ -71,8 +75,10 @@ private:
 	std::vector<VkImageView> m_imageViews;
 
 	VkRenderPass m_renderPass;
+	VkDescriptorSetLayout m_descriptorSetLayout;
 	VkPipelineLayout m_pipelineLayout;
 	VkPipeline m_graphicsPipeline;
+
 	std::vector<VkFramebuffer> m_swapchainFramebuffers;
 	VkCommandPool m_cmdPool;
 	std::vector<VkCommandBuffer> m_cmdBuffers;
@@ -86,5 +92,8 @@ private:
 	VkDeviceMemory m_vertexBufferMemory;
 	VkBuffer m_indexBuffer;
 	VkDeviceMemory m_indexBufferMemory;
+
+	std::vector<VkBuffer> m_uniformBuffers;
+	std::vector<VkDeviceMemory> m_uniformBufferMemorys;
 };
 
