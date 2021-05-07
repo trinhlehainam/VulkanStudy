@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <set>
+#include <array>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ONE_TO_ZERO
@@ -76,6 +77,9 @@ void VkApplication::InitVulkan()
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffer();
+	CreateDescriptorPool();
+	AllocateDescriptorSets();
+
 	AllocateCommandBuffers();
 	RecordCommands();
 	CreateSyncObjects();
@@ -122,6 +126,7 @@ void VkApplication::CleanUp()
 	vkDestroyCommandPool(m_mainDevice.logicalDevice, m_cmdPool, nullptr);
 	vkDestroyPipeline(m_mainDevice.logicalDevice, m_graphicsPipeline, nullptr);
 	vkDestroyDescriptorSetLayout(m_mainDevice.logicalDevice, m_descriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(m_mainDevice.logicalDevice, m_descriptorPool, nullptr);
 	vkDestroyPipelineLayout(m_mainDevice.logicalDevice, m_pipelineLayout, nullptr);
 	vkDestroyRenderPass(m_mainDevice.logicalDevice, m_renderPass, nullptr);
 
@@ -437,7 +442,7 @@ void VkApplication::CreateGraphicsPipeline()
 	rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizerCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizerCreateInfo.lineWidth = 1.0f;
 	rasterizerCreateInfo.depthClampEnable = VK_FALSE;
@@ -607,6 +612,57 @@ void VkApplication::CreateIndexBuffer()
 	vkFreeMemory(m_mainDevice.logicalDevice, transferMemory, nullptr);
 }
 
+void VkApplication::CreateDescriptorPool()
+{
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(m_uniformBuffers.size());
+
+	VkDescriptorPoolCreateInfo poolCreateInfo{};
+	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolCreateInfo.maxSets = static_cast<uint32_t>(m_uniformBuffers.size());
+	poolCreateInfo.poolSizeCount = 1;
+	poolCreateInfo.pPoolSizes = &poolSize;
+
+	if (vkCreateDescriptorPool(m_mainDevice.logicalDevice, &poolCreateInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to create Descriptor Pool !\n");;
+}
+
+void VkApplication::AllocateDescriptorSets()
+{
+	m_descriptorSets.resize(m_uniformBuffers.size());
+
+	std::vector<VkDescriptorSetLayout> setLayouts(m_descriptorSets.size(), m_descriptorSetLayout);
+
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = m_descriptorPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(m_descriptorSets.size());
+	allocInfo.pSetLayouts = setLayouts.data();
+
+	if (vkAllocateDescriptorSets(m_mainDevice.logicalDevice, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS)
+		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate Descriptor Sets !\n");
+
+	for (size_t i = 0; i < m_uniformBuffers.size(); ++i)
+	{
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = m_uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(VkUtils::UniformBufferObject);
+
+		VkWriteDescriptorSet writeSet{};
+		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeSet.dstSet = m_descriptorSets[i];
+		writeSet.dstBinding = 0;
+		writeSet.dstArrayElement = 0;
+		writeSet.pBufferInfo = &bufferInfo;
+		writeSet.descriptorCount = 1;
+		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+		vkUpdateDescriptorSets(m_mainDevice.logicalDevice, 1, &writeSet, 0, nullptr);
+	}
+}
+
 void VkApplication::CreateUniformBuffer()
 {
 	VkDeviceSize bufferSize = sizeof(VkUtils::UniformBufferObject);
@@ -699,6 +755,7 @@ void VkApplication::RecordCommands()
 		VkDeviceSize deviceSizes[] = { 0 };
 		vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, deviceSizes);
 		vkCmdBindIndexBuffer(cmdBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
 		vkCmdDrawIndexed(cmdBuffer, static_cast<uint32_t>(g_indices.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(cmdBuffer);
 
@@ -709,19 +766,19 @@ void VkApplication::RecordCommands()
 
 void VkApplication::RenderFrame()
 {
-	uint32_t image_idx = 0;
-	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphores[m_currenFrame], VK_NULL_HANDLE, &image_idx) != VK_SUCCESS)
+	uint32_t imageIndex = 0;
+	if (vkAcquireNextImageKHR(m_mainDevice.logicalDevice, m_swapchain, UINT64_MAX, m_imageAvailableSemaphores[m_currenFrame], VK_NULL_HANDLE, &imageIndex) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to acquire swap chain's image !\n");
 
-	m_imagesInFlight[image_idx] = m_inFlightFences[m_currenFrame];
+	m_imagesInFlight[imageIndex] = m_inFlightFences[m_currenFrame];
 
-	vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx], VK_TRUE, UINT64_MAX);
-	vkResetFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[image_idx]);
+	vkWaitForFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+	vkResetFences(m_mainDevice.logicalDevice, 1, &m_imagesInFlight[imageIndex]);
 		
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &m_cmdBuffers[image_idx];
+	submitInfo.pCommandBuffers = &m_cmdBuffers[imageIndex];
 
 	VkPipelineStageFlags pipelineStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
@@ -734,9 +791,9 @@ void VkApplication::RenderFrame()
 	submitInfo.signalSemaphoreCount = _countof(signalSemaphores);
 	submitInfo.pSignalSemaphores = signalSemaphores;
 	
-	UpdateUniformBuffer(image_idx);
+	UpdateUniformBuffer(imageIndex);
 
-	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_imagesInFlight[image_idx]) != VK_SUCCESS)
+	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_imagesInFlight[imageIndex]) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to submit rendering to swap chain's image !\n");
 
 	VkSwapchainKHR swapchains[] = { m_swapchain };
@@ -747,7 +804,7 @@ void VkApplication::RenderFrame()
 	presentInfo.pSwapchains = swapchains;
 	presentInfo.waitSemaphoreCount = _countof(signalSemaphores);
 	presentInfo.pWaitSemaphores = signalSemaphores;
-	presentInfo.pImageIndices = &image_idx;
+	presentInfo.pImageIndices = &imageIndex;
 
 	if (vkQueuePresentKHR(m_presentationQueue, &presentInfo) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Falied to submit present info to queue !\n");
