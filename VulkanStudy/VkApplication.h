@@ -27,18 +27,21 @@ private:
 	void CreateSwapchain();
 	void CreateImageViews();
 	void CreateRenderPass();
+
 	void CreateDescriptorSetLayout();
 	void CreateGraphicsPipeline();
 	void CreateFramebuffers();
 	void CreateCommandPool();
-	void CreateVertexBuffer();
-	void CreateIndexBuffer();
-	void CreateDescriptorPool();
-	void AllocateDescriptorSets();
-	void CreateUniformBuffer();
 	void AllocateCommandBuffers();
 	void CreateSyncObjects();
-	
+
+	void CreateVertexBuffer();
+	void CreateIndexBuffer();
+	void CreateUniformBuffer();
+
+	void CreateDescriptorPool();
+	void AllocateDescriptorSets();
+
 	void RecordCommands();
 
 	void RenderFrame();

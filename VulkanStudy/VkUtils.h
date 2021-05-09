@@ -85,6 +85,12 @@ namespace VkUtils
 	// If function doesn't find any suitable memory type, it returns UINT32_MAX
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
 
-	void CopyBuffer(VkDevice device, VkQueue queue, VkCommandPool cmdPool, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
+	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* pCmdBuffer);
+
+	void EndSingleTimeCommands(VkQueue queue, VkCommandBuffer cmdBuffer);
+
+	void CopyBuffer(VkCommandBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
+
+	VkBuffer CreateImageBufferFromFile(VkDevice device, const char* fileName);
 }
 

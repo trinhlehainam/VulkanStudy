@@ -580,7 +580,10 @@ void VkApplication::CreateVertexBuffer()
 	memcpy(data, g_vertices.data(), bufferSize);
 	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
 
-	VkUtils::CopyBuffer(m_mainDevice.logicalDevice, m_graphicsQueue, m_cmdPool, transferBuffer, m_vertexBuffer, bufferSize);
+	VkCommandBuffer tempCmdBuffer;
+	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tempCmdBuffer);
+	VkUtils::CopyBuffer(tempCmdBuffer, transferBuffer, m_vertexBuffer, bufferSize);
+	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tempCmdBuffer);
 
 	// Release transfer resources
 	vkDestroyBuffer(m_mainDevice.logicalDevice, transferBuffer, nullptr);
@@ -606,7 +609,10 @@ void VkApplication::CreateIndexBuffer()
 	memcpy(data, g_indices.data(), bufferSize);
 	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
 
-	VkUtils::CopyBuffer(m_mainDevice.logicalDevice, m_graphicsQueue, m_cmdPool, transferBuffer, m_indexBuffer, bufferSize);
+	VkCommandBuffer tempCmdBuffer;
+	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tempCmdBuffer);
+	VkUtils::CopyBuffer(tempCmdBuffer, transferBuffer, m_vertexBuffer, bufferSize);
+	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tempCmdBuffer);
 
 	vkDestroyBuffer(m_mainDevice.logicalDevice, transferBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, transferMemory, nullptr);

@@ -3,6 +3,14 @@
 #include <iostream>
 #include <fstream>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+namespace
+{
+	constexpr int kBytesPerPixel = 4;
+}
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageServerities,
 	VkDebugUtilsMessageTypeFlagsEXT messageFlags,
@@ -372,36 +380,50 @@ namespace VkUtils
 		return UINT32_MAX;
 	}
 
-	void CopyBuffer(VkDevice device, VkQueue queue, VkCommandPool cmdPool, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize)
+	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* cmdBuffer)
 	{
-		// Allocate temporary command buffer
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.commandPool = cmdPool;
 		allocInfo.commandBufferCount = 1;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		VkCommandBuffer cmdBuffer;
-		vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer);
+		vkAllocateCommandBuffers(device, &allocInfo, cmdBuffer);
 
-		// Record commands
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(cmdBuffer, &beginInfo);
-		VkBufferCopy bufferCopy{};
-		bufferCopy.size = bufferSize;
-		bufferCopy.dstOffset = 0;
-		bufferCopy.srcOffset = 0;
-		vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
+		vkBeginCommandBuffer(*cmdBuffer, &beginInfo);
+	}
+
+	void EndSingleTimeCommands(VkQueue queue, VkCommandBuffer cmdBuffer)
+	{
 		vkEndCommandBuffer(cmdBuffer);
 
-		// Submit commands to queue and wait until queue finishing commands
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &cmdBuffer;
 		vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
 		vkQueueWaitIdle(queue);
+	}
 
+	void CopyBuffer(VkCommandBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize)
+	{
+		VkBufferCopy bufferCopy{};
+		bufferCopy.size = bufferSize;
+		bufferCopy.dstOffset = 0;
+		bufferCopy.srcOffset = 0;
+		vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
+	}
+
+	VkBuffer CreateImageBufferFromFile(VkDevice device, const char* fileName)
+	{
+		int width, height, channel;
+		stbi_uc* pixels = stbi_load(fileName, &width, &height, &channel, STBI_rgb_alpha);
+		if (!pixels)
+			throw std::runtime_error("\nERROR : Failed to load texture image from file !\n");
+		VkDeviceSize imageSize = width * height * kBytesPerPixel;
+
+		return CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);;
 	}
 }
