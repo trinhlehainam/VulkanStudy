@@ -580,8 +580,7 @@ void VkApplication::CreateVertexBuffer()
 	memcpy(data, g_vertices.data(), bufferSize);
 	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
 
-	VkCommandBuffer tempCmdBuffer;
-	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tempCmdBuffer);
+	VkCommandBuffer tempCmdBuffer = VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool);
 	VkUtils::CopyBuffer(tempCmdBuffer, transferBuffer, m_vertexBuffer, bufferSize);
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tempCmdBuffer);
 
@@ -608,9 +607,8 @@ void VkApplication::CreateIndexBuffer()
 	vkMapMemory(m_mainDevice.logicalDevice, transferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, g_indices.data(), bufferSize);
 	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
-
-	VkCommandBuffer tempCmdBuffer;
-	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tempCmdBuffer);
+	
+	VkCommandBuffer tempCmdBuffer = VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool);
 	VkUtils::CopyBuffer(tempCmdBuffer, transferBuffer, m_vertexBuffer, bufferSize);
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tempCmdBuffer);
 

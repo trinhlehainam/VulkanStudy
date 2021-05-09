@@ -380,19 +380,22 @@ namespace VkUtils
 		return UINT32_MAX;
 	}
 
-	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* cmdBuffer)
+	VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool)
 	{
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.commandPool = cmdPool;
 		allocInfo.commandBufferCount = 1;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		vkAllocateCommandBuffers(device, &allocInfo, cmdBuffer);
+		VkCommandBuffer cmdBuffer;
+		vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer);
 
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(*cmdBuffer, &beginInfo);
+		vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+
+		return cmdBuffer;
 	}
 
 	void EndSingleTimeCommands(VkQueue queue, VkCommandBuffer cmdBuffer)
@@ -423,7 +426,8 @@ namespace VkUtils
 		if (!pixels)
 			throw std::runtime_error("\nERROR : Failed to load texture image from file !\n");
 		VkDeviceSize imageSize = width * height * kBytesPerPixel;
+		auto buffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-		return CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);;
+		return buffer;
 	}
 }
