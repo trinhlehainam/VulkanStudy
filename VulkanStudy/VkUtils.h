@@ -91,6 +91,7 @@ namespace VkUtils
 
 	void CopyBuffer(VkCommandBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
 
-	VkBuffer CreateImageBufferFromFile(VkDevice device, const char* fileName);
+	void CreateImageBufferFromFile(const char* fileName, VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue, VkCommandPool cmdPool, 
+		VkBuffer* pBuffer, VkDeviceMemory* pMemory);
 }
 

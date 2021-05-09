@@ -418,15 +418,31 @@ namespace VkUtils
 		vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
 	}
 
-	VkBuffer CreateImageBufferFromFile(VkDevice device, const char* fileName)
+	void CreateImageBufferFromFile(const char* fileName, VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue, VkCommandPool cmdPool,
+		VkBuffer* pBuffer, VkDeviceMemory* pMemory)
 	{
 		int width, height, channel;
 		stbi_uc* pixels = stbi_load(fileName, &width, &height, &channel, STBI_rgb_alpha);
 		if (!pixels)
 			throw std::runtime_error("\nERROR : Failed to load texture image from file !\n");
-		VkDeviceSize imageSize = width * height * kBytesPerPixel;
-		auto buffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
-		return buffer;
+		VkDeviceSize imageSize = width * height * kBytesPerPixel;
+		*pBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		*pMemory = AllocateBufferMemory(physicalDevice, device, *pBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		auto transferBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+		auto transferMemory = AllocateBufferMemory(physicalDevice, device, transferBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		void* data = nullptr;
+		vkMapMemory(device, transferMemory, 0, imageSize, 0, &data);
+		memcpy(data, pixels, imageSize);
+		vkUnmapMemory(device, transferMemory);
+
+		VkCommandBuffer tmpCmdBuffer;
+		BeginSingleTimeCommands(device, cmdPool, &tmpCmdBuffer);
+		CopyBuffer(tmpCmdBuffer, transferBuffer, *pBuffer, imageSize);
+		EndSingleTimeCommands(queue, tmpCmdBuffer);
+
+		vkDestroyBuffer(device, transferBuffer, nullptr);
+		vkFreeMemory(device, transferMemory, nullptr);
 	}
 }

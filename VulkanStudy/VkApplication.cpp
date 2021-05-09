@@ -67,22 +67,24 @@ void VkApplication::InitVulkan()
 
 	CreateSwapchain();
 	CreateImageViews();
-
 	CreateRenderPass();
+	CreateFramebuffers();
+
+	CreateCommandPool();
+	AllocateCommandBuffers();
+	CreateSyncObjects();
+
 	CreateDescriptorSetLayout();
 	CreateGraphicsPipeline();
-
-	CreateFramebuffers();
-	CreateCommandPool();
+	
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffer();
+
 	CreateDescriptorPool();
 	AllocateDescriptorSets();
 
-	AllocateCommandBuffers();
 	RecordCommands();
-	CreateSyncObjects();
 }
 
 void VkApplication::MainLoop()

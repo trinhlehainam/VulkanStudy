@@ -22,26 +22,28 @@ private:
 	void CleanUp();
 
 	void CreateInstance();
-	void CreateLogicalDevice();
 	void CreateSurface();
+	void CreateLogicalDevice();
+	
 	void CreateSwapchain();
 	void CreateImageViews();
 	void CreateRenderPass();
-
-	void CreateDescriptorSetLayout();
-	void CreateGraphicsPipeline();
 	void CreateFramebuffers();
+	
 	void CreateCommandPool();
 	void AllocateCommandBuffers();
 	void CreateSyncObjects();
-
+	
+	void CreateDescriptorSetLayout();
+	void CreateGraphicsPipeline();
+	
 	void CreateVertexBuffer();
 	void CreateIndexBuffer();
 	void CreateUniformBuffer();
-
+	
 	void CreateDescriptorPool();
 	void AllocateDescriptorSets();
-
+	
 	void RecordCommands();
 
 	void RenderFrame();
