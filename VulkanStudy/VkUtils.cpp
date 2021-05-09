@@ -380,22 +380,20 @@ namespace VkUtils
 		return UINT32_MAX;
 	}
 
-	VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool)
+	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* pCmdBuffer)
 	{
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.commandPool = cmdPool;
 		allocInfo.commandBufferCount = 1;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		VkCommandBuffer cmdBuffer;
-		vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer);
+		vkAllocateCommandBuffers(device, &allocInfo, pCmdBuffer);
 
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+		vkBeginCommandBuffer(*pCmdBuffer, &beginInfo);
 
-		return cmdBuffer;
 	}
 
 	void EndSingleTimeCommands(VkQueue queue, VkCommandBuffer cmdBuffer)
@@ -407,6 +405,7 @@ namespace VkUtils
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &cmdBuffer;
 		vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+
 		vkQueueWaitIdle(queue);
 	}
 
