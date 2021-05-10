@@ -364,6 +364,39 @@ namespace VkUtils
 		return mem;
 	}
 
+	void AllocateImage2D(VkPhysicalDevice physicalDevice, VkDevice device, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage,
+		VkImage* pImage, VkDeviceMemory* pMemory)
+	{
+		VkImageCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		createInfo.format = format;
+		createInfo.imageType = VK_IMAGE_TYPE_2D;
+		createInfo.usage = usage;
+		createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		createInfo.extent = extent;
+		createInfo.mipLevels = 1;
+		createInfo.arrayLayers = 1;
+		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		if (vkCreateImage(device, &createInfo, nullptr, pImage) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create image !\n");
+
+		VkMemoryRequirements memRequire{};
+		vkGetImageMemoryRequirements(device, *pImage, &memRequire);
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequire.size;
+		allocInfo.memoryTypeIndex = VkUtils::FindMemoryType(physicalDevice, memRequire.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		if (vkAllocateMemory(device, &allocInfo, nullptr, pMemory) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to allocate memory for image !\n");
+
+		vkBindImageMemory(device, *pImage, *pMemory, 0);
+	}
+
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties)
 	{
 		VkPhysicalDeviceMemoryProperties memProps{};
@@ -419,13 +452,16 @@ namespace VkUtils
 	}
 
 	void CreateImageBufferFromFile(const char* fileName, VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue, VkCommandPool cmdPool,
-		VkBuffer* pBuffer, VkDeviceMemory* pMemory)
+		VkBuffer* pBuffer, VkDeviceMemory* pMemory, VkExtent3D* extent)
 	{
 		int width, height, channel;
 		stbi_uc* pixels = stbi_load(fileName, &width, &height, &channel, STBI_rgb_alpha);
 		if (!pixels)
 			throw std::runtime_error("\nERROR : Failed to load texture image from file !\n");
 
+		extent->width = width;
+		extent->height = height;
+		extent->depth = 1;
 		VkDeviceSize imageSize = width * height * kBytesPerPixel;
 		*pBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 		*pMemory = AllocateBufferMemory(physicalDevice, device, *pBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -444,5 +480,41 @@ namespace VkUtils
 
 		vkDestroyBuffer(device, transferBuffer, nullptr);
 		vkFreeMemory(device, transferMemory, nullptr);
+	}
+
+	void TransitionImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+	{
+		VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.image = image;
+		barrier.oldLayout = oldLayout;
+		barrier.newLayout = newLayout;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.srcAccessMask = 0;			// TODO
+		barrier.dstAccessMask = 0;			// TODO
+
+		vkCmdPipelineBarrier(cmdBuffer, 0, 0, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	}
+
+	void CopyBufferToImage(VkCommandBuffer cmdBuffer, VkExtent3D imageExtent, VkBuffer srcBuffer, VkImage dstImage)
+	{
+		VkBufferImageCopy region{};
+		region.bufferImageHeight = 0;
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.imageExtent = imageExtent;
+		region.imageOffset = { 0,0,0 };
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.layerCount = 1;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.mipLevel = 0;
+
+		vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
 }

@@ -82,6 +82,9 @@ namespace VkUtils
 	// If it failed to create VkDeviceMemory , it returns VK_NULL_HANDLE
 	VkDeviceMemory AllocateBufferMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps);
 
+	void AllocateImage2D(VkPhysicalDevice physicalDevice, VkDevice device, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage,
+		VkImage* pImage, VkDeviceMemory* pMemory);
+
 	// If function doesn't find any suitable memory type, it returns UINT32_MAX
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
 
@@ -92,6 +95,10 @@ namespace VkUtils
 	void CopyBuffer(VkCommandBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
 
 	void CreateImageBufferFromFile(const char* fileName, VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue, VkCommandPool cmdPool, 
-		VkBuffer* pBuffer, VkDeviceMemory* pMemory);
+		VkBuffer* pBuffer, VkDeviceMemory* pMemory, VkExtent3D* extent);
+
+	void TransitionImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+	void CopyBufferToImage(VkCommandBuffer cmdBuffer, VkExtent3D imageExtent, VkBuffer srcBuffer, VkImage dstImage);
 }
 

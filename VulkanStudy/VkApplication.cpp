@@ -80,6 +80,7 @@ void VkApplication::InitVulkan()
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffer();
+	CreateTextureBuffer();
 
 	CreateDescriptorPool();
 	AllocateDescriptorSets();
@@ -116,11 +117,13 @@ void VkApplication::CleanUp()
 	vkDestroyBuffer(m_mainDevice.logicalDevice, m_indexBuffer, nullptr);
 	for (auto& buffer : m_uniformBuffers)
 		vkDestroyBuffer(m_mainDevice.logicalDevice, buffer, nullptr);
+	vkDestroyImage(m_mainDevice.logicalDevice, m_textureBuffer, nullptr);
 
 	vkFreeMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, m_indexBufferMemory, nullptr);
 	for (auto& memory : m_uniformBufferMemorys)
 		vkFreeMemory(m_mainDevice.logicalDevice, memory, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, m_textureMemory, nullptr);
 	
 	// Pipeline objects
 	for (auto& framebuffer : m_swapchainFramebuffers)
@@ -691,6 +694,30 @@ void VkApplication::CreateUniformBuffer()
 		memory = VkUtils::AllocateBufferMemory(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, buffer,
 			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 	}
+}
+
+void VkApplication::CreateTextureBuffer()
+{
+	VkBuffer imageBuffer;
+	VkDeviceMemory imageBufferMemory;
+	VkExtent3D extent;
+	VkUtils::CreateImageBufferFromFile("assets/textures/statue.jpg", m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_graphicsQueue,
+		m_cmdPool, &imageBuffer, &imageBufferMemory, &extent);
+
+	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, m_swapchainFormat,
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &m_textureBuffer, &m_textureMemory);
+
+	VkCommandBuffer tmpCmdBuffer;
+	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tmpCmdBuffer);
+
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_textureBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	VkUtils::CopyBufferToImage(tmpCmdBuffer, extent, imageBuffer, m_textureBuffer);
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_textureBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tmpCmdBuffer);
+
+	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, imageBufferMemory, nullptr);
 }
 
 void VkApplication::AllocateCommandBuffers()

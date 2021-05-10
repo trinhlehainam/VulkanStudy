@@ -40,6 +40,7 @@ private:
 	void CreateVertexBuffer();
 	void CreateIndexBuffer();
 	void CreateUniformBuffer();
+	void CreateTextureBuffer();
 	
 	void CreateDescriptorPool();
 	void AllocateDescriptorSets();
@@ -103,5 +104,8 @@ private:
 	std::vector<VkDeviceMemory> m_uniformBufferMemorys;
 	VkDescriptorPool m_descriptorPool;
 	std::vector<VkDescriptorSet> m_descriptorSets;
+
+	VkImage m_textureBuffer;
+	VkDeviceMemory m_textureMemory;
 };
 
