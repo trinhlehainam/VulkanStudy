@@ -463,11 +463,13 @@ namespace VkUtils
 		extent->height = height;
 		extent->depth = 1;
 		VkDeviceSize imageSize = width * height * kBytesPerPixel;
-		*pBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		*pBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 		*pMemory = AllocateBufferMemory(physicalDevice, device, *pBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		auto transferBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-		auto transferMemory = AllocateBufferMemory(physicalDevice, device, transferBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		auto transferMemory = AllocateBufferMemory(physicalDevice, device, transferBuffer, 
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
 		void* data = nullptr;
 		vkMapMemory(device, transferMemory, 0, imageSize, 0, &data);
 		memcpy(data, pixels, imageSize);
@@ -499,7 +501,34 @@ namespace VkUtils
 		barrier.srcAccessMask = 0;			// TODO
 		barrier.dstAccessMask = 0;			// TODO
 
-		vkCmdPipelineBarrier(cmdBuffer, 0, 0, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+		VkPipelineStageFlags srcStageMask = 0;
+		VkPipelineStageFlags dstStageMask = 0;
+
+		if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+		{
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
+		else
+			throw std::runtime_error("\nVULKAN ERROR : Unsupported image layout transition !\n");
+
+		vkCmdPipelineBarrier(cmdBuffer, 
+			srcStageMask, dstStageMask,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier);
 	}
 
 	void CopyBufferToImage(VkCommandBuffer cmdBuffer, VkExtent3D imageExtent, VkBuffer srcBuffer, VkImage dstImage)

@@ -705,15 +705,13 @@ void VkApplication::CreateTextureBuffer()
 		m_cmdPool, &imageBuffer, &imageBufferMemory, &extent);
 
 	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, m_swapchainFormat,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &m_textureBuffer, &m_textureMemory);
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &m_textureBuffer, &m_textureMemory);
 
 	VkCommandBuffer tmpCmdBuffer;
 	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tmpCmdBuffer);
-
 	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_textureBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	VkUtils::CopyBufferToImage(tmpCmdBuffer, extent, imageBuffer, m_textureBuffer);
 	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_textureBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tmpCmdBuffer);
 
 	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
