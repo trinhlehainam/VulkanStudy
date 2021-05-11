@@ -100,5 +100,9 @@ namespace VkUtils
 	void TransitionImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 	void CopyBufferToImage(VkCommandBuffer cmdBuffer, VkExtent3D imageExtent, VkBuffer srcBuffer, VkImage dstImage);
+
+	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format);
+
+	VkSampler CreateSampler(VkPhysicalDevice physicalDevice, VkDevice device);
 }
 

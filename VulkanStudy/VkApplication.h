@@ -26,7 +26,7 @@ private:
 	void CreateLogicalDevice();
 	
 	void CreateSwapchain();
-	void CreateImageViews();
+	void CreateSwapchainImageViews();
 	void CreateRenderPass();
 	void CreateFramebuffers();
 	
@@ -40,7 +40,7 @@ private:
 	void CreateVertexBuffer();
 	void CreateIndexBuffer();
 	void CreateUniformBuffer();
-	void CreateTextureBuffer();
+	void CreateTexture();
 	
 	void CreateDescriptorPool();
 	void AllocateDescriptorSets();
@@ -105,7 +105,9 @@ private:
 	VkDescriptorPool m_descriptorPool;
 	std::vector<VkDescriptorSet> m_descriptorSets;
 
-	VkImage m_textureBuffer;
-	VkDeviceMemory m_textureMemory;
+	VkImage m_texImage;
+	VkDeviceMemory m_texMemory;
+	VkImageView m_texImageView;
+	VkSampler m_texSampler;
 };
 

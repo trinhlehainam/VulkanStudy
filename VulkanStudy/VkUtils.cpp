@@ -546,4 +546,51 @@ namespace VkUtils
 
 		vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
+
+	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format)
+	{
+		VkImageViewCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.image = image;
+		createInfo.format = format;
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.layerCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseMipLevel = 0;
+
+		VkImageView view;
+		if (vkCreateImageView(device, &createInfo, nullptr, &view) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create Image View !\n");
+
+		return view;
+	}
+	VkSampler CreateSampler(VkPhysicalDevice physicalDevice, VkDevice device)
+	{
+		VkSamplerCreateInfo createInfo{};;
+		createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		createInfo.magFilter = VK_FILTER_LINEAR;
+		createInfo.minFilter = VK_FILTER_LINEAR;
+		createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		createInfo.compareEnable = VK_FALSE;
+		createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		createInfo.mipLodBias = 0.0f;
+		createInfo.minLod = 0.0f;
+		createInfo.maxLod = 0.0f;
+		createInfo.unnormalizedCoordinates = VK_FALSE;
+
+		VkPhysicalDeviceProperties props;
+		vkGetPhysicalDeviceProperties(physicalDevice, &props);
+		createInfo.anisotropyEnable = VK_TRUE;
+		createInfo.maxAnisotropy = props.limits.maxSamplerAnisotropy;
+
+		VkSampler sampler;
+		if (vkCreateSampler(device, &createInfo, nullptr, &sampler) != VK_SUCCESS)
+			throw std::runtime_error("\nVULKAN ERROR : Failed to create Sampler !\n");
+
+		return sampler;
+	}
 }

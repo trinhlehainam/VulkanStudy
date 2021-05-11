@@ -66,7 +66,7 @@ void VkApplication::InitVulkan()
 	CreateLogicalDevice();
 
 	CreateSwapchain();
-	CreateImageViews();
+	CreateSwapchainImageViews();
 	CreateRenderPass();
 	CreateFramebuffers();
 
@@ -80,7 +80,7 @@ void VkApplication::InitVulkan()
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffer();
-	CreateTextureBuffer();
+	CreateTexture();
 
 	CreateDescriptorPool();
 	AllocateDescriptorSets();
@@ -117,14 +117,17 @@ void VkApplication::CleanUp()
 	vkDestroyBuffer(m_mainDevice.logicalDevice, m_indexBuffer, nullptr);
 	for (auto& buffer : m_uniformBuffers)
 		vkDestroyBuffer(m_mainDevice.logicalDevice, buffer, nullptr);
-	vkDestroyImage(m_mainDevice.logicalDevice, m_textureBuffer, nullptr);
+	vkDestroyImage(m_mainDevice.logicalDevice, m_texImage, nullptr);
 
 	vkFreeMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, m_indexBufferMemory, nullptr);
 	for (auto& memory : m_uniformBufferMemorys)
 		vkFreeMemory(m_mainDevice.logicalDevice, memory, nullptr);
-	vkFreeMemory(m_mainDevice.logicalDevice, m_textureMemory, nullptr);
-	
+	vkFreeMemory(m_mainDevice.logicalDevice, m_texMemory, nullptr);
+
+	vkDestroyImageView(m_mainDevice.logicalDevice, m_texImageView, nullptr);
+	vkDestroySampler(m_mainDevice.logicalDevice, m_texSampler, nullptr);
+
 	// Pipeline objects
 	for (auto& framebuffer : m_swapchainFramebuffers)
 		vkDestroyFramebuffer(m_mainDevice.logicalDevice, framebuffer, nullptr);
@@ -225,6 +228,8 @@ void VkApplication::CreateLogicalDevice()
 	createInfo.ppEnabledExtensionNames = VkUtils::DEVICE_EXTENSIONS.data();
 
 	VkPhysicalDeviceFeatures features {};
+	features.samplerAnisotropy = VK_TRUE;
+
 	createInfo.pEnabledFeatures = &features;
 
 	if (vkCreateDevice(m_mainDevice.physicalDevice, &createInfo, nullptr, &m_mainDevice.logicalDevice) != VK_SUCCESS)
@@ -302,30 +307,13 @@ void VkApplication::CreateSwapchain()
 	m_swapchainExtent = extent;
 }
 
-void VkApplication::CreateImageViews()
+void VkApplication::CreateSwapchainImageViews()
 {
 	m_imageViews.resize(m_swapchainImages.size());
 
 	for (int i = 0; i < m_swapchainImages.size(); ++i)
 	{
-		VkImageViewCreateInfo createInfo {};
-		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		createInfo.format = m_swapchainFormat;
-		createInfo.image = m_swapchainImages[i];
-		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		createInfo.subresourceRange.baseMipLevel = 0;
-		createInfo.subresourceRange.baseArrayLayer = 0;
-		createInfo.subresourceRange.layerCount = 1;
-		createInfo.subresourceRange.levelCount = 1;
-
-		if (vkCreateImageView(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
-			throw std::runtime_error("\nVUKAN INIT ERROR : Failed to create Image Views !\n");
+		m_imageViews[i] = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_swapchainImages[i], m_swapchainFormat);
 	}
 }
 
@@ -696,7 +684,7 @@ void VkApplication::CreateUniformBuffer()
 	}
 }
 
-void VkApplication::CreateTextureBuffer()
+void VkApplication::CreateTexture()
 {
 	VkBuffer imageBuffer;
 	VkDeviceMemory imageBufferMemory;
@@ -705,17 +693,20 @@ void VkApplication::CreateTextureBuffer()
 		m_cmdPool, &imageBuffer, &imageBufferMemory, &extent);
 
 	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, m_swapchainFormat,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &m_textureBuffer, &m_textureMemory);
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &m_texImage, &m_texMemory);
 
 	VkCommandBuffer tmpCmdBuffer;
 	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tmpCmdBuffer);
-	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_textureBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	VkUtils::CopyBufferToImage(tmpCmdBuffer, extent, imageBuffer, m_textureBuffer);
-	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_textureBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	VkUtils::CopyBufferToImage(tmpCmdBuffer, extent, imageBuffer, m_texImage);
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tmpCmdBuffer);
 
 	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, imageBufferMemory, nullptr);
+
+	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, m_swapchainFormat);
+	m_texSampler = VkUtils::CreateSampler(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice);
 }
 
 void VkApplication::AllocateCommandBuffers()
