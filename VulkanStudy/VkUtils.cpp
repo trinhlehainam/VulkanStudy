@@ -575,6 +575,7 @@ namespace VkUtils
 		createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		createInfo.compareEnable = VK_FALSE;
 		createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		createInfo.mipLodBias = 0.0f;
