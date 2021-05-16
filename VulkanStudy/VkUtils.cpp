@@ -37,7 +37,7 @@ namespace VkUtils
 	std::vector<VkVertexInputAttributeDescription> Vertex::GetAttributeDescriptions()
 	{
 		std::vector<VkVertexInputAttributeDescription> descs;
-		descs.resize(2, {});
+		descs.resize(3, {});
 
 		descs[0].binding = 0;
 		descs[0].location = 0;
@@ -48,6 +48,11 @@ namespace VkUtils
 		descs[1].location = 1;
 		descs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 		descs[1].offset = offsetof(Vertex, Color);
+
+		descs[2].binding = 0;
+		descs[2].location = 2;
+		descs[2].format = VK_FORMAT_R32G32_SFLOAT;
+		descs[2].offset = offsetof(Vertex, TexCoord);
 
 		return descs;
 	}

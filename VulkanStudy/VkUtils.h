@@ -35,6 +35,7 @@ namespace VkUtils
 	{
 		glm::vec3 Pos;
 		glm::vec3 Color;
+		glm::vec2 TexCoord;
 
 		static VkVertexInputBindingDescription GetBindingDescription();
 		static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions();

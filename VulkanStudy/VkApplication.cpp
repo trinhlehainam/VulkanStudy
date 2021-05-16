@@ -16,10 +16,10 @@
 namespace
 {
 	const std::vector<VkUtils::Vertex> g_vertices = {
-	{{-0.5f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}},
-	{{0.5f, -0.5f,0.0f}, {0.0f, 1.0f, 0.0f}},
-	{{0.5f, 0.5f,0.0f}, {0.0f, 0.0f, 1.0f}},
-	{{-0.5f, 0.5f,0.0f}, {1.0f, 1.0f, 1.0f}}
+	{{-0.5f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f,0.0f}},
+	{{0.5f, -0.5f,0.0f},  {0.0f, 1.0f, 0.0f}, {1.0f,0.0f}},
+	{{0.5f, 0.5f,0.0f},   {0.0f, 0.0f, 1.0f}, {1.0f,1.0f}},
+	{{-0.5f, 0.5f,0.0f},  {1.0f, 1.0f, 1.0f}, {0.0f,1.0f}}
 	};
 
 	const std::vector<uint32_t> g_indices = { 0,1,2,2,3,0 };
@@ -362,17 +362,26 @@ void VkApplication::CreateRenderPass()
 
 void VkApplication::CreateDescriptorSetLayout()
 {
-	VkDescriptorSetLayoutBinding binding{};
-	binding.binding = 0;
-	binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	binding.descriptorCount = 1;
-	binding.pImmutableSamplers = nullptr;
+	VkDescriptorSetLayoutBinding uniformBinding{};
+	uniformBinding.binding = 0;
+	uniformBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uniformBinding.descriptorCount = 1;
+	uniformBinding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutBinding samplerBinding{};
+	samplerBinding.binding = 1;
+	samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	samplerBinding.descriptorCount = 1;
+	samplerBinding.pImmutableSamplers = nullptr;
+
+	std::array<VkDescriptorSetLayoutBinding,2> bindings = { uniformBinding , samplerBinding };
 
 	VkDescriptorSetLayoutCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	createInfo.bindingCount = 1;
-	createInfo.pBindings = &binding;
+	createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	createInfo.pBindings = bindings.data();
 
 	if (vkCreateDescriptorSetLayout(m_mainDevice.logicalDevice, &createInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create Descriptor Set Layout !\n");
@@ -613,15 +622,21 @@ void VkApplication::CreateIndexBuffer()
 
 void VkApplication::CreateDescriptorPool()
 {
-	VkDescriptorPoolSize poolSize{};
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSize.descriptorCount = static_cast<uint32_t>(m_uniformBuffers.size());
+	VkDescriptorPoolSize uniformPoolSize{};
+	uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformPoolSize.descriptorCount = static_cast<uint32_t>(m_swapchainImages.size());
+
+	VkDescriptorPoolSize samplerPoolSize{};
+	samplerPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerPoolSize.descriptorCount = static_cast<uint32_t>(m_swapchainImages.size());
+
+	std::array<VkDescriptorPoolSize,2> poolSizes{ uniformPoolSize , samplerPoolSize };
 
 	VkDescriptorPoolCreateInfo poolCreateInfo{};
 	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolCreateInfo.maxSets = static_cast<uint32_t>(m_uniformBuffers.size());
-	poolCreateInfo.poolSizeCount = 1;
-	poolCreateInfo.pPoolSizes = &poolSize;
+	poolCreateInfo.maxSets = static_cast<uint32_t>(m_swapchainImages.size());
+	poolCreateInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+	poolCreateInfo.pPoolSizes = poolSizes.data();
 
 	if (vkCreateDescriptorPool(m_mainDevice.logicalDevice, &poolCreateInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create Descriptor Pool !\n");;
@@ -629,7 +644,7 @@ void VkApplication::CreateDescriptorPool()
 
 void VkApplication::AllocateDescriptorSets()
 {
-	m_descriptorSets.resize(m_uniformBuffers.size());
+	m_descriptorSets.resize(m_swapchainImages.size());
 
 	std::vector<VkDescriptorSetLayout> setLayouts(m_descriptorSets.size(), m_descriptorSetLayout);
 
@@ -642,23 +657,39 @@ void VkApplication::AllocateDescriptorSets()
 	if (vkAllocateDescriptorSets(m_mainDevice.logicalDevice, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to allocate Descriptor Sets !\n");
 
-	for (size_t i = 0; i < m_uniformBuffers.size(); ++i)
+	for (size_t i = 0; i < m_descriptorSets.size(); ++i)
 	{
 		VkDescriptorBufferInfo bufferInfo{};
 		bufferInfo.buffer = m_uniformBuffers[i];
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(VkUtils::UniformBufferObject);
 
-		VkWriteDescriptorSet writeSet{};
-		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writeSet.dstSet = m_descriptorSets[i];
-		writeSet.dstBinding = 0;
-		writeSet.dstArrayElement = 0;
-		writeSet.pBufferInfo = &bufferInfo;
-		writeSet.descriptorCount = 1;
-		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = m_texImageView;
+		imageInfo.sampler = m_texSampler;
 
-		vkUpdateDescriptorSets(m_mainDevice.logicalDevice, 1, &writeSet, 0, nullptr);
+		VkWriteDescriptorSet writeBuffer{};
+		writeBuffer.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeBuffer.dstSet = m_descriptorSets[i];
+		writeBuffer.dstBinding = 0;
+		writeBuffer.dstArrayElement = 0;
+		writeBuffer.pBufferInfo = &bufferInfo;
+		writeBuffer.descriptorCount = 1;
+		writeBuffer.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+		VkWriteDescriptorSet writeImage{};
+		writeImage.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeImage.dstSet = m_descriptorSets[i];
+		writeImage.dstBinding = 1;
+		writeImage.dstArrayElement = 0;
+		writeImage.pImageInfo = &imageInfo;
+		writeImage.descriptorCount = 1;
+		writeImage.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+		std::array<VkWriteDescriptorSet,2> writes = { writeBuffer , writeImage };
+
+		vkUpdateDescriptorSets(m_mainDevice.logicalDevice, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 	}
 }
 
