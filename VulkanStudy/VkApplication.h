@@ -41,6 +41,7 @@ private:
 	void CreateIndexBuffer();
 	void CreateUniformBuffer();
 	void CreateTexture();
+	void CreateDepthResources();
 	
 	void CreateDescriptorPool();
 	void AllocateDescriptorSets();
@@ -109,5 +110,9 @@ private:
 	VkDeviceMemory m_texMemory;
 	VkImageView m_texImageView;
 	VkSampler m_texSampler;
+
+	VkImage m_depthImage;
+	VkDeviceMemory m_depthMemory;
+	VkImageView m_depthImageView;
 };
 

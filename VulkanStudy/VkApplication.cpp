@@ -16,13 +16,20 @@
 namespace
 {
 	const std::vector<VkUtils::Vertex> g_vertices = {
-	{{-0.5f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f,0.0f}},
-	{{0.5f, -0.5f,0.0f},  {0.0f, 1.0f, 0.0f}, {1.0f,0.0f}},
-	{{0.5f, 0.5f,0.0f},   {0.0f, 0.0f, 1.0f}, {1.0f,1.0f}},
-	{{-0.5f, 0.5f,0.0f},  {1.0f, 1.0f, 1.0f}, {0.0f,1.0f}}
+	  {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+	{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+	{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+	{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 	};
 
-	const std::vector<uint32_t> g_indices = { 0,1,2,2,3,0 };
+	const std::vector<uint32_t> g_indices = 
+	{ 0, 1, 2, 2, 3, 0,
+	4, 5, 6, 6, 7, 4 };
 }
 
 const uint16_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -81,6 +88,7 @@ void VkApplication::InitVulkan()
 	CreateIndexBuffer();
 	CreateUniformBuffer();
 	CreateTexture();
+	CreateDepthResources();
 
 	CreateDescriptorPool();
 	AllocateDescriptorSets();
@@ -118,14 +126,17 @@ void VkApplication::CleanUp()
 	for (auto& buffer : m_uniformBuffers)
 		vkDestroyBuffer(m_mainDevice.logicalDevice, buffer, nullptr);
 	vkDestroyImage(m_mainDevice.logicalDevice, m_texImage, nullptr);
+	vkDestroyImage(m_mainDevice.logicalDevice, m_depthImage, nullptr);
 
 	vkFreeMemory(m_mainDevice.logicalDevice, m_vertexBufferMemory, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, m_indexBufferMemory, nullptr);
 	for (auto& memory : m_uniformBufferMemorys)
 		vkFreeMemory(m_mainDevice.logicalDevice, memory, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, m_texMemory, nullptr);
+	vkFreeMemory(m_mainDevice.logicalDevice, m_depthMemory, nullptr);
 
 	vkDestroyImageView(m_mainDevice.logicalDevice, m_texImageView, nullptr);
+	vkDestroyImageView(m_mainDevice.logicalDevice, m_depthImageView, nullptr);
 	vkDestroySampler(m_mainDevice.logicalDevice, m_texSampler, nullptr);
 
 	// Pipeline objects
@@ -313,7 +324,7 @@ void VkApplication::CreateSwapchainImageViews()
 
 	for (int i = 0; i < m_swapchainImages.size(); ++i)
 	{
-		m_imageViews[i] = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_swapchainImages[i], m_swapchainFormat);
+		m_imageViews[i] = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_swapchainImages[i], m_swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 }
 
@@ -736,8 +747,17 @@ void VkApplication::CreateTexture()
 	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, imageBufferMemory, nullptr);
 
-	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, m_swapchainFormat);
+	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, m_swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	m_texSampler = VkUtils::CreateSampler(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice);
+}
+
+void VkApplication::CreateDepthResources()
+{
+	VkExtent3D extent{ m_swapchainExtent.width, m_swapchainExtent.height, 1.0f };
+	VkFormat depthFormat = VkUtils::FindDepthFormat(m_mainDevice.physicalDevice, VK_IMAGE_TILING_OPTIMAL);
+	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, &m_depthImage, &m_depthMemory);
+
+	m_depthImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void VkApplication::AllocateCommandBuffers()

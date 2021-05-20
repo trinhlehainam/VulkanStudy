@@ -89,6 +89,9 @@ namespace VkUtils
 	// If function doesn't find any suitable memory type, it returns UINT32_MAX
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
 
+	VkFormat FindDepthFormat(VkPhysicalDevice physicalDevice, VkImageTiling imageTiling);
+	VkFormat FindSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& formats, VkImageTiling imageTiling, VkFormatFeatureFlags feature);
+
 	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* pCmdBuffer);
 
 	void EndSingleTimeCommands(VkQueue queue, VkCommandBuffer cmdBuffer);
@@ -102,7 +105,7 @@ namespace VkUtils
 
 	void CopyBufferToImage(VkCommandBuffer cmdBuffer, VkExtent3D imageExtent, VkBuffer srcBuffer, VkImage dstImage);
 
-	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format);
+	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect);
 
 	VkSampler CreateSampler(VkPhysicalDevice physicalDevice, VkDevice device);
 }

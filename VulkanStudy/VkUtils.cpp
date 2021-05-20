@@ -418,6 +418,33 @@ namespace VkUtils
 		return UINT32_MAX;
 	}
 
+	VkFormat FindDepthFormat(VkPhysicalDevice physicalDevice, VkImageTiling imageTiling)
+	{
+		return FindSupportedFormat(
+			physicalDevice, 
+			{VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+			imageTiling,
+			VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	}
+
+	VkFormat FindSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& formats, VkImageTiling imageTiling, VkFormatFeatureFlags feature)
+	{
+		VkFormatProperties props{};
+		for (const auto& format : formats)
+		{
+			vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+			bool is_supported_linear_feature = (props.linearTilingFeatures & feature) == feature;
+			bool is_supported_optimal_feature = (props.optimalTilingFeatures & feature) == feature;
+			if (imageTiling == VK_IMAGE_TILING_LINEAR && is_supported_linear_feature)
+				return format;
+			else if (imageTiling == VK_IMAGE_TILING_OPTIMAL && is_supported_optimal_feature)
+				return format;
+		}
+		
+		throw std::runtime_error("\nVULKAN ERROR : Don't find any supported formats !\n");
+	}
+
 	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* pCmdBuffer)
 	{
 		VkCommandBufferAllocateInfo allocInfo{};
@@ -552,14 +579,14 @@ namespace VkUtils
 		vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
 
-	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format)
+	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect)
 	{
 		VkImageViewCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		createInfo.image = image;
 		createInfo.format = format;
 		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.aspectMask = aspect;
 		createInfo.subresourceRange.layerCount = 1;
 		createInfo.subresourceRange.baseArrayLayer = 0;
 		createInfo.subresourceRange.levelCount = 1;
