@@ -28,7 +28,6 @@ private:
 	void CreateSwapchain();
 	void CreateSwapchainImageViews();
 	void CreateRenderPass();
-	void CreateFramebuffers();
 	
 	void CreateCommandPool();
 	void AllocateCommandBuffers();
@@ -40,8 +39,10 @@ private:
 	void CreateVertexBuffer();
 	void CreateIndexBuffer();
 	void CreateUniformBuffer();
+
 	void CreateTexture();
 	void CreateDepthResources();
+	void CreateFramebuffers();
 	
 	void CreateDescriptorPool();
 	void AllocateDescriptorSets();

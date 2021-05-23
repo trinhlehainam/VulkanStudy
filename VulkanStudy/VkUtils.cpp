@@ -445,6 +445,11 @@ namespace VkUtils
 		throw std::runtime_error("\nVULKAN ERROR : Don't find any supported formats !\n");
 	}
 
+	bool HasStencilComponent(VkFormat format)
+	{
+		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+	}
+
 	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* pCmdBuffer)
 	{
 		VkCommandBufferAllocateInfo allocInfo{};
@@ -551,6 +556,16 @@ namespace VkUtils
 
 			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
+		else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+		{
+			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		}
 		else
 			throw std::runtime_error("\nVULKAN ERROR : Unsupported image layout transition !\n");

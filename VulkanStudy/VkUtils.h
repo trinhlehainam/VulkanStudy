@@ -90,7 +90,10 @@ namespace VkUtils
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
 
 	VkFormat FindDepthFormat(VkPhysicalDevice physicalDevice, VkImageTiling imageTiling);
+
 	VkFormat FindSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& formats, VkImageTiling imageTiling, VkFormatFeatureFlags feature);
+
+	bool HasStencilComponent(VkFormat format);
 
 	void BeginSingleTimeCommands(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer* pCmdBuffer);
 
