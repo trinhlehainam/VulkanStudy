@@ -492,7 +492,7 @@ void VkApplication::CreateGraphicsPipeline()
 	multisampleCreateInfo.alphaToOneEnable = VK_FALSE;
 
 	VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo{};
-	depthStencilCreateInfo.flags = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthStencilCreateInfo.depthTestEnable = VK_TRUE;
 	depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
 	depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
