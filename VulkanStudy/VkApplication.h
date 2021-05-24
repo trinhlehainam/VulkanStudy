@@ -1,6 +1,6 @@
 #pragma once
-#include <vector>
 
+#include "VkUtils.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -36,6 +36,7 @@ private:
 	void CreateDescriptorSetLayout();
 	void CreateGraphicsPipeline();
 	
+	void LoadModelToBuffer();
 	void CreateVertexBuffer();
 	void CreateIndexBuffer();
 	void CreateUniformBuffer();
@@ -97,6 +98,9 @@ private:
 	std::vector<VkFence> m_imagesInFlight;
 	uint16_t m_currenFrame;
 
+
+	std::vector<VkUtils::Vertex> m_vertices;
+	std::vector<uint32_t> m_indices;
 	VkBuffer m_vertexBuffer;
 	VkDeviceMemory m_vertexBufferMemory;
 	VkBuffer m_indexBuffer;

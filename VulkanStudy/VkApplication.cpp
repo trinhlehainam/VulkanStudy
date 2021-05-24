@@ -15,7 +15,7 @@
 
 namespace
 {
-	const std::vector<VkUtils::Vertex> g_vertices = {
+	/*const std::vector<VkUtils::Vertex> g_vertices = {
 	  {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
 	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
 	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
@@ -29,7 +29,7 @@ namespace
 
 	const std::vector<uint32_t> g_indices = 
 	{ 0, 1, 2, 2, 3, 0,
-	4, 5, 6, 6, 7, 4 };
+	4, 5, 6, 6, 7, 4 };*/
 }
 
 const uint16_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -83,6 +83,7 @@ void VkApplication::InitVulkan()
 	CreateDescriptorSetLayout();
 	CreateGraphicsPipeline();
 	
+	LoadModelToBuffer();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffer();
@@ -600,10 +601,15 @@ void VkApplication::CreateCommandPool()
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create command pool !\n");
 }
 
+void VkApplication::LoadModelToBuffer()
+{
+	VkUtils::LoadModel("assets/models/viking_room.obj", m_vertices, m_indices);
+}
+
 void VkApplication::CreateVertexBuffer()
 {
 	// Create vertex buffer and allocate memory
-	auto bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
+	auto bufferSize = sizeof(m_vertices[0]) * m_vertices.size();
 	m_vertexBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, 
 						VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 	if (m_vertexBuffer == VK_NULL_HANDLE)
@@ -621,7 +627,7 @@ void VkApplication::CreateVertexBuffer()
 	// Map data to transfer buffer
 	void* data = nullptr;
 	vkMapMemory(m_mainDevice.logicalDevice, transferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, g_vertices.data(), bufferSize);
+	memcpy(data, m_vertices.data(), bufferSize);
 	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
 
 	VkCommandBuffer tempCmdBuffer;
@@ -636,7 +642,7 @@ void VkApplication::CreateVertexBuffer()
 
 void VkApplication::CreateIndexBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(g_indices[0]) * g_indices.size();
+	VkDeviceSize bufferSize = sizeof(m_indices[0]) * m_indices.size();
 	m_indexBuffer = VkUtils::CreateBuffer(m_mainDevice.logicalDevice, bufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 	if (m_indexBuffer == VK_NULL_HANDLE)
 		throw std::runtime_error("\nVULKAN ERROR : Failed to create index buffer !\n");
@@ -650,7 +656,7 @@ void VkApplication::CreateIndexBuffer()
 
 	void* data = nullptr;
 	vkMapMemory(m_mainDevice.logicalDevice, transferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, g_indices.data(), bufferSize);
+	memcpy(data, m_indices.data(), bufferSize);
 	vkUnmapMemory(m_mainDevice.logicalDevice, transferMemory);
 	
 	VkCommandBuffer tempCmdBuffer;
@@ -762,7 +768,7 @@ void VkApplication::CreateTexture()
 	VkBuffer imageBuffer;
 	VkDeviceMemory imageBufferMemory;
 	VkExtent3D extent;
-	VkUtils::CreateImageBufferFromFile("assets/textures/statue.jpg", m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_graphicsQueue,
+	VkUtils::CreateImageBufferFromFile("assets/models/viking_room.png", m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_graphicsQueue,
 		m_cmdPool, &imageBuffer, &imageBufferMemory, &extent);
 
 	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, m_swapchainFormat,
@@ -868,7 +874,7 @@ void VkApplication::RecordCommands()
 		vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, deviceSizes);
 		vkCmdBindIndexBuffer(cmdBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
-		vkCmdDrawIndexed(cmdBuffer, static_cast<uint32_t>(g_indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(cmdBuffer, static_cast<uint32_t>(m_indices.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(cmdBuffer);
 
 		if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS)

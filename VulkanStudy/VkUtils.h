@@ -111,5 +111,7 @@ namespace VkUtils
 	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect);
 
 	VkSampler CreateSampler(VkPhysicalDevice physicalDevice, VkDevice device);
+
+	void LoadModel(const char* modelPath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 }
 
