@@ -771,7 +771,7 @@ void VkApplication::CreateTexture()
 	VkUtils::CreateImageBufferFromFile("assets/models/viking_room.png", m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_graphicsQueue,
 		m_cmdPool, &imageBuffer, &imageBufferMemory, &extent);
 
-	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, m_swapchainFormat,
+	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &m_texImage, &m_texMemory);
 
 	VkCommandBuffer tmpCmdBuffer;
@@ -784,7 +784,7 @@ void VkApplication::CreateTexture()
 	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, imageBufferMemory, nullptr);
 
-	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, m_swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 	m_texSampler = VkUtils::CreateSampler(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice);
 }
 
