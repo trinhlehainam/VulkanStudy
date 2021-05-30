@@ -373,7 +373,7 @@ namespace VkUtils
 	}
 
 	void AllocateImage2D(VkPhysicalDevice physicalDevice, VkDevice device, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage, uint32_t mipLevels,
-		VkImage* pImage, VkDeviceMemory* pMemory)
+		VkSampleCountFlagBits samples, VkImage* pImage, VkDeviceMemory* pMemory)
 	{
 		VkImageCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -385,7 +385,7 @@ namespace VkUtils
 		createInfo.extent = extent;
 		createInfo.mipLevels = mipLevels;
 		createInfo.arrayLayers = 1;
-		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		createInfo.samples = samples;
 		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 		if (vkCreateImage(device, &createInfo, nullptr, pImage) != VK_SUCCESS)
@@ -446,6 +446,22 @@ namespace VkUtils
 		}
 		
 		throw std::runtime_error("\nVULKAN ERROR : Don't find any supported formats !\n");
+	}
+
+	VkSampleCountFlagBits FindMaxUsableSampleCount(VkPhysicalDevice physicalDevice)
+	{
+		VkPhysicalDeviceProperties physicalDeviceProperties;
+		vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+		VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+		if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+		if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+		if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+		if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+		if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+		if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+		return VK_SAMPLE_COUNT_1_BIT;
 	}
 
 	bool HasStencilComponent(VkFormat format)

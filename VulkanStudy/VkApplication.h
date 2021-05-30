@@ -42,6 +42,7 @@ private:
 	void CreateUniformBuffer();
 
 	void CreateTexture();
+	void CreateColorResources();
 	void CreateDepthResources();
 	void CreateFramebuffers();
 	
@@ -82,7 +83,7 @@ private:
 	std::vector<VkImage> m_swapchainImages;
 	VkFormat m_swapchainFormat;
 	VkExtent2D m_swapchainExtent;
-	std::vector<VkImageView> m_imageViews;
+	std::vector<VkImageView> m_swapchainImageViews;
 
 	VkRenderPass m_renderPass;
 	VkDescriptorSetLayout m_descriptorSetLayout;
@@ -97,7 +98,6 @@ private:
 	std::vector<VkFence> m_inFlightFences;
 	std::vector<VkFence> m_imagesInFlight;
 	uint16_t m_currenFrame;
-
 
 	std::vector<VkUtils::Vertex> m_vertices;
 	std::vector<uint32_t> m_indices;
@@ -120,5 +120,10 @@ private:
 	VkImage m_depthImage;
 	VkDeviceMemory m_depthMemory;
 	VkImageView m_depthImageView;
+
+	VkSampleCountFlagBits m_msaaSamples;
+	VkImage m_colorImage;
+	VkDeviceMemory m_colorMemory;
+	VkImageView m_colorImageView;
 };
 

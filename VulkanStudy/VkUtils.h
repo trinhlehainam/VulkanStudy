@@ -84,7 +84,7 @@ namespace VkUtils
 	VkDeviceMemory AllocateBufferMemory(VkPhysicalDevice physDevice, VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps);
 
 	void AllocateImage2D(VkPhysicalDevice physicalDevice, VkDevice device, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage, uint32_t mipLevels,
-		VkImage* pImage, VkDeviceMemory* pMemory);
+		VkSampleCountFlagBits samples, VkImage* pImage, VkDeviceMemory* pMemory);
 
 	// If function doesn't find any suitable memory type, it returns UINT32_MAX
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t allowedType, VkMemoryPropertyFlags properties);
@@ -92,6 +92,8 @@ namespace VkUtils
 	VkFormat FindDepthFormat(VkPhysicalDevice physicalDevice, VkImageTiling imageTiling);
 
 	VkFormat FindSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& formats, VkImageTiling imageTiling, VkFormatFeatureFlags feature);
+
+	VkSampleCountFlagBits FindMaxUsableSampleCount(VkPhysicalDevice physicalDevice);
 
 	bool HasStencilComponent(VkFormat format);
 
