@@ -112,8 +112,10 @@ namespace VkUtils
 
 	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels);
 
-	VkSampler CreateSampler(VkPhysicalDevice physicalDevice, VkDevice device);
+	VkSampler CreateSampler(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t mipLevels);
 
 	void LoadModel(const char* modelPath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+
+	void GenerateMipmaps(VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool cmdPool, VkQueue queue, VkImage image, VkFormat format, VkExtent3D extent, uint32_t mipLevels);
 }
 

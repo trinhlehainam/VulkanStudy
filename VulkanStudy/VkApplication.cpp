@@ -773,25 +773,25 @@ void VkApplication::CreateTexture()
 	m_texMipLevels = VkUtils::CalculateMipLevels(extent);
 
 	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, VK_FORMAT_R8G8B8A8_SRGB, 
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_texMipLevels, &m_texImage, &m_texMemory);
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_texMipLevels, &m_texImage, &m_texMemory);
 
 	VkCommandBuffer tmpCmdBuffer;
 	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tmpCmdBuffer);
 	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_texMipLevels);
 	VkUtils::CopyBufferToImage(tmpCmdBuffer, extent, imageBuffer, m_texImage);
-	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_texMipLevels);
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tmpCmdBuffer);
 
 	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, imageBufferMemory, nullptr);
 
+	VkUtils::GenerateMipmaps(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_cmdPool, m_graphicsQueue, m_texImage, VK_FORMAT_R8G8B8A8_SRGB, extent, m_texMipLevels);
 	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_texMipLevels);
-	m_texSampler = VkUtils::CreateSampler(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice);
+	m_texSampler = VkUtils::CreateSampler(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_texMipLevels);
 }
 
 void VkApplication::CreateDepthResources()
 {
-	VkExtent3D extent{ m_swapchainExtent.width, m_swapchainExtent.height, 1.0f };
+	VkExtent3D extent{ m_swapchainExtent.width, m_swapchainExtent.height, 1.0 };
 	VkFormat depthFormat = VkUtils::FindDepthFormat(m_mainDevice.physicalDevice, VK_IMAGE_TILING_OPTIMAL);
 	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, depthFormat, 
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1, &m_depthImage, &m_depthMemory);
@@ -942,7 +942,7 @@ void VkApplication::UpdateUniformBuffer(uint16_t imageIndex)
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - s_startTime).count();
 
 	VkUtils::UniformBufferObject ubo{};
-	ubo.Model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.Model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.View = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.Proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_screenWidth) / m_screenHeight, 0.1f, 10.0f);
 	ubo.Proj[1][1] *= -1;
