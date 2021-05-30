@@ -326,7 +326,7 @@ void VkApplication::CreateSwapchainImageViews()
 
 	for (int i = 0; i < m_swapchainImages.size(); ++i)
 	{
-		m_imageViews[i] = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_swapchainImages[i], m_swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		m_imageViews[i] = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_swapchainImages[i], m_swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 }
 
@@ -768,23 +768,24 @@ void VkApplication::CreateTexture()
 	VkBuffer imageBuffer;
 	VkDeviceMemory imageBufferMemory;
 	VkExtent3D extent;
-	VkUtils::CreateImageBufferFromFile("assets/models/viking_room.png", m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_graphicsQueue,
+	VkUtils::CreateImageFromFile("assets/models/viking_room.png", m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, m_graphicsQueue,
 		m_cmdPool, &imageBuffer, &imageBufferMemory, &extent);
+	m_texMipLevels = VkUtils::CalculateMipLevels(extent);
 
-	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &m_texImage, &m_texMemory);
+	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, VK_FORMAT_R8G8B8A8_SRGB, 
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_texMipLevels, &m_texImage, &m_texMemory);
 
 	VkCommandBuffer tmpCmdBuffer;
 	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tmpCmdBuffer);
-	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_texMipLevels);
 	VkUtils::CopyBufferToImage(tmpCmdBuffer, extent, imageBuffer, m_texImage);
-	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_texImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_texMipLevels);
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tmpCmdBuffer);
 
 	vkDestroyBuffer(m_mainDevice.logicalDevice, imageBuffer, nullptr);
 	vkFreeMemory(m_mainDevice.logicalDevice, imageBufferMemory, nullptr);
 
-	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+	m_texImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_texImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_texMipLevels);
 	m_texSampler = VkUtils::CreateSampler(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice);
 }
 
@@ -792,12 +793,13 @@ void VkApplication::CreateDepthResources()
 {
 	VkExtent3D extent{ m_swapchainExtent.width, m_swapchainExtent.height, 1.0f };
 	VkFormat depthFormat = VkUtils::FindDepthFormat(m_mainDevice.physicalDevice, VK_IMAGE_TILING_OPTIMAL);
-	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, &m_depthImage, &m_depthMemory);
+	VkUtils::AllocateImage2D(m_mainDevice.physicalDevice, m_mainDevice.logicalDevice, extent, depthFormat, 
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1, &m_depthImage, &m_depthMemory);
 
-	m_depthImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+	m_depthImageView = VkUtils::CreateImageView2D(m_mainDevice.logicalDevice, m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 	VkCommandBuffer tmpCmdBuffer;
 	VkUtils::BeginSingleTimeCommands(m_mainDevice.logicalDevice, m_cmdPool, &tmpCmdBuffer);
-	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_depthImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	VkUtils::TransitionImageLayout(tmpCmdBuffer, m_depthImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 	VkUtils::EndSingleTimeCommands(m_graphicsQueue, tmpCmdBuffer);
 }
 

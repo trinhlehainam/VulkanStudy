@@ -372,7 +372,7 @@ namespace VkUtils
 		return mem;
 	}
 
-	void AllocateImage2D(VkPhysicalDevice physicalDevice, VkDevice device, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage,
+	void AllocateImage2D(VkPhysicalDevice physicalDevice, VkDevice device, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage, uint32_t mipLevels,
 		VkImage* pImage, VkDeviceMemory* pMemory)
 	{
 		VkImageCreateInfo createInfo{};
@@ -383,7 +383,7 @@ namespace VkUtils
 		createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		createInfo.extent = extent;
-		createInfo.mipLevels = 1;
+		createInfo.mipLevels = mipLevels;
 		createInfo.arrayLayers = 1;
 		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -491,10 +491,11 @@ namespace VkUtils
 		vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
 	}
 
-	void CreateImageBufferFromFile(const char* fileName, VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue, VkCommandPool cmdPool,
+	void CreateImageFromFile(const char* fileName, VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue, VkCommandPool cmdPool,
 		VkBuffer* pBuffer, VkDeviceMemory* pMemory, VkExtent3D* extent)
 	{
 		int width, height, channel;
+
 		stbi_uc* pixels = stbi_load(fileName, &width, &height, &channel, STBI_rgb_alpha);
 		if (!pixels)
 			throw std::runtime_error("\nERROR : Failed to load texture image from file !\n");
@@ -524,7 +525,12 @@ namespace VkUtils
 		vkFreeMemory(device, transferMemory, nullptr);
 	}
 
-	void TransitionImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+	uint32_t CalculateMipLevels(const VkExtent3D& extent)
+	{
+		return static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;;
+	}
+
+	void TransitionImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels)
 	{
 		VkImageMemoryBarrier barrier{};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -532,7 +538,7 @@ namespace VkUtils
 		barrier.oldLayout = oldLayout;
 		barrier.newLayout = newLayout;
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.levelCount = mipLevels;
 		barrier.subresourceRange.baseMipLevel = 0;
 		barrier.subresourceRange.layerCount = 1;
 		barrier.subresourceRange.baseArrayLayer = 0;
@@ -597,7 +603,7 @@ namespace VkUtils
 		vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
 
-	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect)
+	VkImageView CreateImageView2D(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
 	{
 		VkImageViewCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -607,7 +613,7 @@ namespace VkUtils
 		createInfo.subresourceRange.aspectMask = aspect;
 		createInfo.subresourceRange.layerCount = 1;
 		createInfo.subresourceRange.baseArrayLayer = 0;
-		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.levelCount = mipLevels;
 		createInfo.subresourceRange.baseMipLevel = 0;
 
 		VkImageView view;

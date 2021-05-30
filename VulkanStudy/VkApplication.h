@@ -111,6 +111,7 @@ private:
 	VkDescriptorPool m_descriptorPool;
 	std::vector<VkDescriptorSet> m_descriptorSets;
 
+	uint32_t m_texMipLevels;
 	VkImage m_texImage;
 	VkDeviceMemory m_texMemory;
 	VkImageView m_texImageView;
